@@ -11,6 +11,9 @@ const CHAT_API_URL =
 const AUDIO_API_URL =
     "https://traductor-inteligente-multimodal.vercel.app/api/audio";
 
+    const DOCUMENT_API_URL =
+    "https://traductor-inteligente-multimodal.vercel.app/api/documents"
+
 const IMAGE_API_URL =
     "https://traductor-inteligente-multimodal.vercel.app/api/images";
 
@@ -1205,6 +1208,403 @@ class FileModule {
     }
 
 }
+
+/* =========================================
+   MÓDULO ESPECÍFICO DE DOCUMENTOS
+========================================= */
+
+class DocumentModule extends FileModule {
+
+    constructor(config) {
+
+        super(config);
+
+
+        this.apiUrl =
+            config.apiUrl;
+
+
+        this.submitButton =
+            document.getElementById(
+                config.submitButtonId
+            );
+
+
+        this.resultContainer =
+            document.getElementById(
+                config.resultContainerId
+            );
+
+
+        this.originalText =
+            document.getElementById(
+                config.originalTextId
+            );
+
+
+        this.translatedText =
+            document.getElementById(
+                config.translatedTextId
+            );
+
+    }
+
+
+    /* =====================================
+       SELECCIONAR NUEVO DOCUMENTO
+    ===================================== */
+
+    handleFileSelection() {
+
+        /*
+         * Ocultar resultados anteriores
+         * cuando se seleccione otro archivo.
+         */
+
+        this.hideResult();
+
+
+        /*
+         * Mantener la validación
+         * original de FileModule.
+         */
+
+        super.handleFileSelection();
+
+    }
+
+
+    /* =====================================
+       PROCESAR DOCUMENTO
+    ===================================== */
+
+    async handleSubmit(event) {
+
+        event.preventDefault();
+
+
+        const file =
+            this.input.files[0];
+
+
+        /* ---------------------------------
+           SIN ARCHIVO
+        --------------------------------- */
+
+        if (!file) {
+
+            StatusManager.show(
+                this.statusId,
+                "warning",
+                "Selecciona un documento antes de continuar."
+            );
+
+            return;
+
+        }
+
+
+        /* ---------------------------------
+           VALIDAR ARCHIVO
+        --------------------------------- */
+
+        const validation =
+            this.validateFile(
+                file
+            );
+
+
+        if (!validation.valid) {
+
+            StatusManager.show(
+                this.statusId,
+                "error",
+                validation.message
+            );
+
+            return;
+
+        }
+
+
+        try {
+
+            /*
+             * Limpiar resultado anterior.
+             */
+
+            this.hideResult();
+
+
+            /*
+             * Bloquear botón mientras
+             * se procesa.
+             */
+
+            this.setLoading(true);
+
+
+            /*
+             * Mostrar estado.
+             */
+
+            StatusManager.show(
+                this.statusId,
+                "loading",
+                "Leyendo y traduciendo el documento..."
+            );
+
+
+            /* ---------------------------------
+               CREAR FORMDATA
+            --------------------------------- */
+
+            const formData =
+                new FormData();
+
+
+            formData.append(
+                "document",
+                file,
+                file.name
+            );
+
+
+            /*
+             * IMPORTANTE:
+             *
+             * No establecer manualmente
+             * Content-Type.
+             *
+             * El navegador agregará
+             * multipart/form-data y su boundary.
+             */
+
+            const response =
+                await fetch(
+                    this.apiUrl,
+                    {
+                        method:
+                            "POST",
+
+                        body:
+                            formData
+                    }
+                );
+
+
+            /* ---------------------------------
+               LEER RESPUESTA
+            --------------------------------- */
+
+            let data = {};
+
+
+            try {
+
+                data =
+                    await response.json();
+
+            } catch {
+
+                throw new Error(
+                    "El servidor devolvió una respuesta no válida."
+                );
+
+            }
+
+
+            /* ---------------------------------
+               ERROR DEL BACKEND
+            --------------------------------- */
+
+            if (!response.ok) {
+
+                throw new Error(
+                    data.error ||
+                    "No fue posible procesar el documento."
+                );
+
+            }
+
+
+            /* ---------------------------------
+               VALIDAR RESPUESTA
+            --------------------------------- */
+
+            if (
+                !data.original_text ||
+                !data.translation
+            ) {
+
+                throw new Error(
+                    "La respuesta del documento está incompleta."
+                );
+
+            }
+
+
+            /* ---------------------------------
+               MOSTRAR TEXTO ORIGINAL
+            --------------------------------- */
+
+            if (this.originalText) {
+
+                this.originalText.textContent =
+                    data.original_text;
+
+            }
+
+
+            /* ---------------------------------
+               MOSTRAR TRADUCCIÓN
+            --------------------------------- */
+
+            if (this.translatedText) {
+
+                this.translatedText.textContent =
+                    data.translation;
+
+            }
+
+
+            /* ---------------------------------
+               MOSTRAR RESULTADO
+            --------------------------------- */
+
+            if (this.resultContainer) {
+
+                this.resultContainer
+                    .classList
+                    .remove(
+                        "d-none"
+                    );
+
+            }
+
+
+            /* ---------------------------------
+               MENSAJE DE ÉXITO
+            --------------------------------- */
+
+            StatusManager.show(
+                this.statusId,
+                "success",
+                `Documento traducido correctamente: ${this.getLanguageName(data.source_language)} → ${this.getLanguageName(data.target_language)}.`
+            );
+
+        } catch (error) {
+
+            console.error(
+                "Error procesando documento:",
+                error
+            );
+
+
+            this.hideResult();
+
+
+            StatusManager.show(
+                this.statusId,
+                "error",
+                error.message ||
+                "No fue posible conectar con el servicio de documentos."
+            );
+
+        } finally {
+
+            this.setLoading(false);
+
+        }
+
+    }
+
+
+    /* =====================================
+       OCULTAR RESULTADO
+    ===================================== */
+
+    hideResult() {
+
+        if (this.resultContainer) {
+
+            this.resultContainer
+                .classList
+                .add(
+                    "d-none"
+                );
+
+        }
+
+
+        if (this.originalText) {
+
+            this.originalText.textContent =
+                "";
+
+        }
+
+
+        if (this.translatedText) {
+
+            this.translatedText.textContent =
+                "";
+
+        }
+
+    }
+
+
+    /* =====================================
+       ESTADO DEL BOTÓN
+    ===================================== */
+
+    setLoading(isLoading) {
+
+        if (!this.submitButton) {
+
+            return;
+
+        }
+
+
+        this.submitButton.disabled =
+            isLoading;
+
+
+        this.submitButton.textContent =
+            isLoading
+                ? "Procesando..."
+                : "Traducir documento";
+
+    }
+
+
+    /* =====================================
+       NOMBRE DEL IDIOMA
+    ===================================== */
+
+    getLanguageName(language) {
+
+        const languages = {
+
+            es:
+                "Español",
+
+            en:
+                "Inglés"
+        };
+
+
+        return (
+            languages[language] ||
+            language
+        );
+
+    }
+
+}
+
 
 /* =========================================
    MÓDULO ESPECÍFICO DE AUDIO
