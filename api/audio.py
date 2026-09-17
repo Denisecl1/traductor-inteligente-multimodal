@@ -60,6 +60,7 @@ ALLOWED_MIME_TYPES = {
     "audio/x-wav",
 
     "audio/mp4",
+    "audio/m4a",
     "audio/x-m4a",
 
     "audio/webm",
@@ -408,6 +409,28 @@ class AudioTranslationService:
         )
 
 
+        # Si la transcripción no está
+        # principalmente en español o inglés,
+        # respondemos como contenido no
+        # procesable (422).
+
+        if not translation.get(
+            "supported",
+            False
+        ):
+
+            raise AudioContentError(
+                translation.get(
+                    "warning"
+                )
+                or
+                (
+                    "El audio debe contener "
+                    "principalmente español o inglés."
+                )
+            )
+
+
         return {
 
             "transcription":
@@ -635,6 +658,20 @@ No agregues explicaciones fuera del JSON.
             raise ValueError(
                 "La respuesta de traducción "
                 "no tiene el formato esperado."
+            )
+
+
+        # Verificar que la respuesta
+        # realmente sea un objeto JSON.
+
+        if not isinstance(
+            data,
+            dict
+        ):
+
+            raise ValueError(
+                "La respuesta de traducción "
+                "no tiene la estructura esperada."
             )
 
 
@@ -1254,7 +1291,28 @@ class handler(
 
 
             # -----------------------------
-            # VALIDAR
+            # VALIDAR TAMAÑO DEL ARCHIVO
+            # -----------------------------
+
+            if (
+                len(audio_bytes) >
+                MAX_AUDIO_BYTES
+            ):
+
+                self._send_json(
+                    413,
+                    {
+                        "error":
+                            "El archivo de audio supera "
+                            "el límite de 4 MB."
+                    }
+                )
+
+                return
+
+
+            # -----------------------------
+            # VALIDAR ARCHIVO
             # -----------------------------
 
             is_valid, message = (
@@ -1300,7 +1358,7 @@ class handler(
 
 
             # -----------------------------
-            # RESPUESTA
+            # RESPUESTA EXITOSA
             # -----------------------------
 
             self._send_json(
@@ -1325,7 +1383,7 @@ class handler(
 
 
         # ---------------------------------
-        # AUDIO SIN VOZ
+        # AUDIO SIN VOZ O IDIOMA NO VÁLIDO
         # ---------------------------------
 
         except AudioContentError as error:
@@ -1340,7 +1398,7 @@ class handler(
 
 
         # ---------------------------------
-        # RESPUESTA INESPERADA
+        # SOLICITUD O RESPUESTA INVÁLIDA
         # ---------------------------------
 
         except ValueError as error:
@@ -1422,6 +1480,27 @@ class handler(
 
 
             # ---------------------------------
+            # VALIDAR ESTRUCTURA JSON
+            # ---------------------------------
+
+            if not isinstance(
+                body,
+                dict
+            ):
+
+                self._send_json(
+                    400,
+                    {
+                        "error":
+                            "La solicitud JSON "
+                            "debe ser un objeto."
+                    }
+                )
+
+                return
+
+
+            # ---------------------------------
             # VALIDAR ACCIÓN
             # ---------------------------------
 
@@ -1475,6 +1554,10 @@ class handler(
             )
 
 
+        # ---------------------------------
+        # SOLICITUD DEMASIADO GRANDE
+        # ---------------------------------
+
         except OverflowError as error:
 
             self._send_json(
@@ -1486,6 +1569,10 @@ class handler(
             )
 
 
+        # ---------------------------------
+        # DATOS INVÁLIDOS
+        # ---------------------------------
+
         except ValueError as error:
 
             self._send_json(
@@ -1496,6 +1583,10 @@ class handler(
                 }
             )
 
+
+        # ---------------------------------
+        # ERROR INTERNO
+        # ---------------------------------
 
         except Exception as error:
 

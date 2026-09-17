@@ -150,7 +150,6 @@ class AppUtils {
                     button.textContent =
                         originalButtonText;
 
-
                     button.classList.remove(
                         "copied"
                     );
@@ -202,12 +201,6 @@ class ChatModule {
             );
 
 
-        this.participantSelect =
-            document.getElementById(
-                "participantSelect"
-            );
-
-
         this.messages =
             document.getElementById(
                 "chatMessages"
@@ -231,7 +224,7 @@ class ChatModule {
 
 
         this.storageKey =
-            "translatorChatHistory";
+            "translatorAIChatHistory";
 
 
         this.history =
@@ -288,7 +281,6 @@ class ChatModule {
 
         this.loadHistory();
 
-
         this.updateCharacterCounter();
     }
 
@@ -339,7 +331,6 @@ class ChatModule {
 
             this.messageInput.focus();
 
-
             return;
         }
 
@@ -355,15 +346,12 @@ class ChatModule {
                 `El mensaje no puede superar ${this.maxCharacters} caracteres.`
             );
 
-
             return;
         }
 
 
-        const participant =
-            this.participantSelect
-                ? this.participantSelect.value
-                : "participant1";
+        const apiHistory =
+            this.buildApiHistory();
 
 
         try {
@@ -376,7 +364,7 @@ class ChatModule {
             StatusManager.show(
                 "chatStatus",
                 "loading",
-                "Traduciendo mensaje..."
+                "La IA está respondiendo y traduciendo..."
             );
 
 
@@ -384,8 +372,7 @@ class ChatModule {
                 await fetch(
                     CHAT_API_URL,
                     {
-                        method:
-                            "POST",
+                        method: "POST",
 
                         headers: {
                             "Content-Type":
@@ -394,7 +381,9 @@ class ChatModule {
 
                         body:
                             JSON.stringify({
-                                message
+                                message,
+                                history:
+                                    apiHistory
                             })
                     }
                 );
@@ -410,7 +399,7 @@ class ChatModule {
 
                 throw new Error(
                     data.error ||
-                    "No fue posible realizar la traducción."
+                    "No fue posible continuar la conversación."
                 );
             }
 
@@ -419,18 +408,25 @@ class ChatModule {
                 !data.original ||
                 !data.translation ||
                 !data.source_language ||
-                !data.target_language
+                !data.target_language ||
+                !data.assistant_original ||
+                !data.assistant_translation
             ) {
 
                 throw new Error(
-                    "La respuesta de traducción está incompleta."
+                    "La respuesta de la conversación está incompleta."
                 );
             }
 
 
-            const historyItem = {
+            /* -------------------------
+               MENSAJE DEL USUARIO
+            -------------------------- */
 
-                participant,
+            const userItem = {
+
+                role:
+                    "user",
 
                 original:
                     data.original,
@@ -446,13 +442,44 @@ class ChatModule {
             };
 
 
+            /* -------------------------
+               RESPUESTA DE LA IA
+            -------------------------- */
+
+            const assistantItem = {
+
+                role:
+                    "assistant",
+
+                original:
+                    data.assistant_original,
+
+                translation:
+                    data.assistant_translation,
+
+                sourceLanguage:
+                    data.source_language,
+
+                targetLanguage:
+                    data.target_language
+            };
+
+
             this.addMessage(
-                historyItem
+                userItem
             );
 
 
-            this.saveMessage(
-                historyItem
+            this.addMessage(
+                assistantItem
+            );
+
+
+            this.saveMessages(
+                [
+                    userItem,
+                    assistantItem
+                ]
             );
 
 
@@ -466,7 +493,7 @@ class ChatModule {
             StatusManager.show(
                 "chatStatus",
                 "success",
-                "Mensaje traducido correctamente."
+                "La IA respondió y ambos mensajes fueron traducidos."
             );
 
 
@@ -475,7 +502,7 @@ class ChatModule {
         } catch (error) {
 
             console.error(
-                "Error al traducir mensaje:",
+                "Error en la conversación:",
                 error
             );
 
@@ -484,7 +511,7 @@ class ChatModule {
                 "chatStatus",
                 "error",
                 error.message ||
-                "No fue posible conectar con el servicio de traducción."
+                "No fue posible conectar con el servicio de conversación."
             );
 
         } finally {
@@ -497,11 +524,37 @@ class ChatModule {
 
 
     /* =====================================
+       PREPARAR HISTORIAL PARA EL BACKEND
+    ===================================== */
+
+    buildApiHistory() {
+
+        return (
+            this.history
+                .slice(-12)
+                .map(
+                    (item) => {
+
+                        return {
+
+                            role:
+                                item.role,
+
+                            content:
+                                item.original
+                        };
+                    }
+                )
+        );
+    }
+
+
+    /* =====================================
        MOSTRAR MENSAJE
     ===================================== */
 
     addMessage({
-        participant,
+        role,
         original,
         translation,
         sourceLanguage,
@@ -531,15 +584,24 @@ class ChatModule {
         );
 
 
+        /*
+         * Reutilizamos las clases que ya
+         * existen en tu CSS:
+         *
+         * participant-1 = Usuario
+         * participant-2 = IA
+         */
+
         messageContainer.classList.add(
-            participant ===
-                "participant1"
+            role === "user"
                 ? "participant-1"
                 : "participant-2"
         );
 
 
-        /* PARTICIPANTE */
+        /* -------------------------
+           PARTICIPANTE
+        -------------------------- */
 
         const participantElement =
             document.createElement(
@@ -552,13 +614,14 @@ class ChatModule {
 
 
         participantElement.textContent =
-            participant ===
-                "participant1"
-                ? "Participante 1"
-                : "Participante 2";
+            role === "user"
+                ? "👤 Tú"
+                : "🤖 IA";
 
 
-        /* TEXTO ORIGINAL */
+        /* -------------------------
+           TEXTO ORIGINAL
+        -------------------------- */
 
         const originalElement =
             document.createElement(
@@ -599,7 +662,9 @@ class ChatModule {
         );
 
 
-        /* TRADUCCIÓN */
+        /* -------------------------
+           TRADUCCIÓN
+        -------------------------- */
 
         const translationElement =
             document.createElement(
@@ -640,7 +705,9 @@ class ChatModule {
         );
 
 
-        /* BOTONES DE COPIAR */
+        /* -------------------------
+           BOTONES DE COPIAR
+        -------------------------- */
 
         const copyButtonsContainer =
             document.createElement(
@@ -772,8 +839,8 @@ class ChatModule {
 
         this.sendButton.textContent =
             isLoading
-                ? "Traduciendo..."
-                : "Traducir y enviar";
+                ? "Respondiendo..."
+                : "Enviar mensaje";
     }
 
 
@@ -781,10 +848,10 @@ class ChatModule {
        GUARDAR HISTORIAL
     ===================================== */
 
-    saveMessage(message) {
+    saveMessages(messages) {
 
         this.history.push(
-            message
+            ...messages
         );
 
 
@@ -845,8 +912,28 @@ class ChatModule {
             }
 
 
+            const validHistory =
+                parsed.filter(
+                    (message) => {
+
+                        return (
+                            message &&
+                            typeof message === "object" &&
+                            (
+                                message.role === "user" ||
+                                message.role === "assistant"
+                            ) &&
+                            typeof message.original === "string" &&
+                            typeof message.translation === "string" &&
+                            typeof message.sourceLanguage === "string" &&
+                            typeof message.targetLanguage === "string"
+                        );
+                    }
+                );
+
+
             this.history =
-                parsed;
+                validHistory;
 
 
             this.history.forEach(
@@ -857,6 +944,20 @@ class ChatModule {
                     );
                 }
             );
+
+
+            if (
+                validHistory.length !==
+                parsed.length
+            ) {
+
+                sessionStorage.setItem(
+                    this.storageKey,
+                    JSON.stringify(
+                        validHistory
+                    )
+                );
+            }
 
         } catch (error) {
 
@@ -884,8 +985,7 @@ class ChatModule {
     clearChat() {
 
         if (
-            this.history.length ===
-            0
+            this.history.length === 0
         ) {
 
             StatusManager.show(
@@ -893,7 +993,6 @@ class ChatModule {
                 "warning",
                 "La conversación ya está vacía."
             );
-
 
             return;
         }
@@ -922,7 +1021,7 @@ class ChatModule {
 
         this.messages.innerHTML = `
             <div class="text-center text-secondary py-4">
-                La conversación aparecerá aquí.
+                Inicia una conversación con la IA.
             </div>
         `;
 
@@ -1182,8 +1281,7 @@ class FileModule {
 
 
         if (
-            file.size ===
-            0
+            file.size === 0
         ) {
 
             return {
@@ -1249,9 +1347,7 @@ class FileModule {
 
             this.resetFileName();
 
-
             this.hidePreview();
-
 
             return;
         }
@@ -1278,9 +1374,7 @@ class FileModule {
 
             this.resetFileName();
 
-
             this.hidePreview();
-
 
             return;
         }
@@ -1512,7 +1606,6 @@ class AudioModule extends FileModule {
 
         this.hideResult();
 
-
         super.handleFileSelection();
     }
 
@@ -1538,7 +1631,6 @@ class AudioModule extends FileModule {
                 "Selecciona un archivo de audio antes de continuar."
             );
 
-
             return;
         }
 
@@ -1556,7 +1648,6 @@ class AudioModule extends FileModule {
                 "error",
                 validation.message
             );
-
 
             return;
         }
@@ -1777,8 +1868,7 @@ class AudioModule extends FileModule {
 
         if (
             !audioBlob ||
-            audioBlob.size ===
-                0
+            audioBlob.size === 0
         ) {
 
             throw new Error(
@@ -2026,7 +2116,6 @@ class DocumentModule extends FileModule {
 
         this.hideResult();
 
-
         super.handleFileSelection();
     }
 
@@ -2052,7 +2141,6 @@ class DocumentModule extends FileModule {
                 "Selecciona un documento antes de continuar."
             );
 
-
             return;
         }
 
@@ -2070,7 +2158,6 @@ class DocumentModule extends FileModule {
                 "error",
                 validation.message
             );
-
 
             return;
         }
@@ -2294,7 +2381,6 @@ class ImageModule extends FileModule {
 
         this.hideResult();
 
-
         super.handleFileSelection();
     }
 
@@ -2320,7 +2406,6 @@ class ImageModule extends FileModule {
                 "Selecciona una imagen antes de continuar."
             );
 
-
             return;
         }
 
@@ -2338,7 +2423,6 @@ class ImageModule extends FileModule {
                 "error",
                 validation.message
             );
-
 
             return;
         }
@@ -2572,14 +2656,11 @@ class TranslatorApp {
         this.chat =
             null;
 
-
         this.audio =
             null;
 
-
         this.documents =
             null;
-
 
         this.images =
             null;
@@ -2778,7 +2859,6 @@ document.addEventListener(
 
         const app =
             new TranslatorApp();
-
 
         app.init();
     }
