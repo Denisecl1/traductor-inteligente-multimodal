@@ -1,6 +1,5 @@
 "use strict";
 
-
 /* =========================================
    ENDPOINTS DEL BACKEND
 ========================================= */
@@ -11,14 +10,15 @@ const CHAT_API_URL =
 const AUDIO_API_URL =
     "https://traductor-inteligente-multimodal.vercel.app/api/audio";
 
-    const DOCUMENT_API_URL =
-    "https://traductor-inteligente-multimodal.vercel.app/api/documents"
+const DOCUMENT_API_URL =
+    "https://traductor-inteligente-multimodal.vercel.app/api/documents";
 
 const IMAGE_API_URL =
     "https://traductor-inteligente-multimodal.vercel.app/api/images";
 
+
 /* =========================================
-   ADMINISTRADOR DE MENSAJES DE ESTADO
+   ADMINISTRADOR DE ESTADOS
 ========================================= */
 
 class StatusManager {
@@ -41,17 +41,17 @@ class StatusManager {
 
         container.innerHTML = "";
 
-        const messageElement =
+        const element =
             document.createElement("div");
 
-        messageElement.className =
+        element.className =
             `status-message status-${type}`;
 
-        messageElement.textContent =
+        element.textContent =
             `${icons[type] || ""} ${message}`;
 
         container.appendChild(
-            messageElement
+            element
         );
     }
 
@@ -70,7 +70,45 @@ class StatusManager {
 
 
 /* =========================================
-   MÓDULO DEL CHAT
+   UTILIDADES
+========================================= */
+
+class AppUtils {
+
+    static getLanguageName(language) {
+
+        const languages = {
+            es: "Español",
+            en: "Inglés"
+        };
+
+        return (
+            languages[language] ||
+            language ||
+            "Idioma desconocido"
+        );
+    }
+
+
+    static async readJson(response) {
+
+        try {
+
+            return await response.json();
+
+        } catch {
+
+            throw new Error(
+                "El servidor devolvió una respuesta no válida."
+            );
+        }
+    }
+
+}
+
+
+/* =========================================
+   MÓDULO DE CHAT
 ========================================= */
 
 class ChatModule {
@@ -112,7 +150,8 @@ class ChatModule {
                 "clearChatButton"
             );
 
-        this.maxCharacters = 1000;
+        this.maxCharacters =
+            1000;
 
         this.storageKey =
             "translatorChatHistory";
@@ -136,15 +175,17 @@ class ChatModule {
 
         this.messageInput.addEventListener(
             "input",
-            () =>
-                this.updateCharacterCounter()
+            () => {
+                this.updateCharacterCounter();
+            }
         );
 
 
         this.form.addEventListener(
             "submit",
-            (event) =>
-                this.handleSubmit(event)
+            (event) => {
+                this.handleSubmit(event);
+            }
         );
 
 
@@ -152,13 +193,16 @@ class ChatModule {
 
             this.clearChatButton.addEventListener(
                 "click",
-                () =>
-                    this.clearChat()
+                () => {
+                    this.clearChat();
+                }
             );
         }
 
 
         this.loadHistory();
+
+        this.updateCharacterCounter();
     }
 
 
@@ -168,11 +212,16 @@ class ChatModule {
 
     updateCharacterCounter() {
 
-        const currentLength =
-            this.messageInput.value.length;
+        if (
+            !this.characterCounter ||
+            !this.messageInput
+        ) {
+            return;
+        }
+
 
         this.characterCounter.textContent =
-            currentLength;
+            this.messageInput.value.length;
     }
 
 
@@ -184,8 +233,11 @@ class ChatModule {
 
         event.preventDefault();
 
+
         const message =
-            this.messageInput.value.trim();
+            this.messageInput
+                .value
+                .trim();
 
 
         if (!message) {
@@ -218,12 +270,16 @@ class ChatModule {
 
 
         const participant =
-            this.participantSelect.value;
+            this.participantSelect
+                ? this.participantSelect.value
+                : "participant1";
 
 
         try {
 
-            this.setLoading(true);
+            this.setLoading(
+                true
+            );
 
 
             StatusManager.show(
@@ -237,34 +293,26 @@ class ChatModule {
                 await fetch(
                     CHAT_API_URL,
                     {
-                        method: "POST",
+                        method:
+                            "POST",
 
                         headers: {
                             "Content-Type":
                                 "application/json"
                         },
 
-                        body: JSON.stringify({
-                            message: message
-                        })
+                        body:
+                            JSON.stringify({
+                                message
+                            })
                     }
                 );
 
 
-            let data = {};
-
-
-            try {
-
-                data =
-                    await response.json();
-
-            } catch {
-
-                throw new Error(
-                    "El servidor devolvió una respuesta no válida."
+            const data =
+                await AppUtils.readJson(
+                    response
                 );
-            }
 
 
             if (!response.ok) {
@@ -276,19 +324,22 @@ class ChatModule {
             }
 
 
-            this.addMessage(
+            if (
+                !data.original ||
+                !data.translation ||
+                !data.source_language ||
+                !data.target_language
+            ) {
+
+                throw new Error(
+                    "La respuesta de traducción está incompleta."
+                );
+            }
+
+
+            const historyItem = {
+
                 participant,
-                data.original,
-                data.translation,
-                data.source_language,
-                data.target_language
-            );
-
-
-            this.saveMessage({
-
-                participant:
-                    participant,
 
                 original:
                     data.original,
@@ -301,11 +352,21 @@ class ChatModule {
 
                 targetLanguage:
                     data.target_language
+            };
 
-            });
+
+            this.addMessage(
+                historyItem
+            );
 
 
-            this.messageInput.value = "";
+            this.saveMessage(
+                historyItem
+            );
+
+
+            this.messageInput.value =
+                "";
 
 
             this.updateCharacterCounter();
@@ -323,7 +384,7 @@ class ChatModule {
         } catch (error) {
 
             console.error(
-                "Error al traducir:",
+                "Error al traducir mensaje:",
                 error
             );
 
@@ -337,7 +398,9 @@ class ChatModule {
 
         } finally {
 
-            this.setLoading(false);
+            this.setLoading(
+                false
+            );
         }
     }
 
@@ -346,13 +409,13 @@ class ChatModule {
        MOSTRAR MENSAJE
     ===================================== */
 
-    addMessage(
+    addMessage({
         participant,
-        originalText,
-        translatedText,
+        original,
+        translation,
         sourceLanguage,
         targetLanguage
-    ) {
+    }) {
 
         const placeholder =
             this.messages.querySelector(
@@ -361,12 +424,15 @@ class ChatModule {
 
 
         if (placeholder) {
+
             placeholder.remove();
         }
 
 
         const messageContainer =
-            document.createElement("div");
+            document.createElement(
+                "div"
+            );
 
 
         messageContainer.classList.add(
@@ -374,32 +440,24 @@ class ChatModule {
         );
 
 
-        if (
+        messageContainer.classList.add(
             participant ===
-            "participant1"
-        ) {
-
-            messageContainer.classList.add(
-                "participant-1"
-            );
-
-        } else {
-
-            messageContainer.classList.add(
-                "participant-2"
-            );
-        }
+                "participant1"
+                ? "participant-1"
+                : "participant-2"
+        );
 
 
         /* PARTICIPANTE */
 
         const participantElement =
-            document.createElement("div");
+            document.createElement(
+                "div"
+            );
 
 
-        participantElement.classList.add(
-            "message-participant"
-        );
+        participantElement.className =
+            "message-participant";
 
 
         participantElement.textContent =
@@ -412,20 +470,23 @@ class ChatModule {
         /* ORIGINAL */
 
         const originalElement =
-            document.createElement("div");
+            document.createElement(
+                "div"
+            );
 
 
-        originalElement.classList.add(
-            "message-original"
-        );
+        originalElement.className =
+            "message-original";
 
 
         const originalLabel =
-            document.createElement("strong");
+            document.createElement(
+                "strong"
+            );
 
 
         originalLabel.textContent =
-            `Original (${this.getLanguageName(sourceLanguage)}):`;
+            `Original (${AppUtils.getLanguageName(sourceLanguage)}):`;
 
 
         originalElement.appendChild(
@@ -434,13 +495,15 @@ class ChatModule {
 
 
         originalElement.appendChild(
-            document.createElement("br")
+            document.createElement(
+                "br"
+            )
         );
 
 
         originalElement.appendChild(
             document.createTextNode(
-                originalText
+                original
             )
         );
 
@@ -448,20 +511,23 @@ class ChatModule {
         /* TRADUCCIÓN */
 
         const translationElement =
-            document.createElement("div");
+            document.createElement(
+                "div"
+            );
 
 
-        translationElement.classList.add(
-            "message-translation"
-        );
+        translationElement.className =
+            "message-translation";
 
 
         const translationLabel =
-            document.createElement("strong");
+            document.createElement(
+                "strong"
+            );
 
 
         translationLabel.textContent =
-            `Traducción (${this.getLanguageName(targetLanguage)}):`;
+            `Traducción (${AppUtils.getLanguageName(targetLanguage)}):`;
 
 
         translationElement.appendChild(
@@ -470,13 +536,15 @@ class ChatModule {
 
 
         translationElement.appendChild(
-            document.createElement("br")
+            document.createElement(
+                "br"
+            )
         );
 
 
         translationElement.appendChild(
             document.createTextNode(
-                translatedText
+                translation
             )
         );
 
@@ -484,16 +552,17 @@ class ChatModule {
         /* BOTÓN COPIAR */
 
         const copyButton =
-            document.createElement("button");
+            document.createElement(
+                "button"
+            );
 
 
         copyButton.type =
             "button";
 
 
-        copyButton.classList.add(
-            "copy-translation-button"
-        );
+        copyButton.className =
+            "copy-translation-button";
 
 
         copyButton.textContent =
@@ -502,27 +571,30 @@ class ChatModule {
 
         copyButton.addEventListener(
             "click",
-            () =>
+            () => {
+
                 this.copyTranslation(
-                    translatedText,
+                    translation,
                     copyButton
-                )
+                );
+            }
         );
 
-
-        /* CONSTRUIR MENSAJE */
 
         messageContainer.appendChild(
             participantElement
         );
 
+
         messageContainer.appendChild(
             originalElement
         );
 
+
         messageContainer.appendChild(
             translationElement
         );
+
 
         messageContainer.appendChild(
             copyButton
@@ -540,26 +612,7 @@ class ChatModule {
 
 
     /* =====================================
-       NOMBRE DE IDIOMA
-    ===================================== */
-
-    getLanguageName(language) {
-
-        const languages = {
-            es: "Español",
-            en: "Inglés"
-        };
-
-
-        return (
-            languages[language] ||
-            language
-        );
-    }
-
-
-    /* =====================================
-       BOTÓN CARGANDO
+       ESTADO BOTÓN
     ===================================== */
 
     setLoading(isLoading) {
@@ -629,7 +682,7 @@ class ChatModule {
 
         try {
 
-            const parsedHistory =
+            const parsed =
                 JSON.parse(
                     savedHistory
                 );
@@ -637,35 +690,25 @@ class ChatModule {
 
             if (
                 !Array.isArray(
-                    parsedHistory
+                    parsed
                 )
             ) {
 
-                this.history = [];
-
-
-                sessionStorage.removeItem(
-                    this.storageKey
+                throw new Error(
+                    "Historial inválido."
                 );
-
-
-                return;
             }
 
 
             this.history =
-                parsedHistory;
+                parsed;
 
 
             this.history.forEach(
                 (message) => {
 
                     this.addMessage(
-                        message.participant,
-                        message.original,
-                        message.translation,
-                        message.sourceLanguage,
-                        message.targetLanguage
+                        message
                     );
                 }
             );
@@ -678,7 +721,8 @@ class ChatModule {
             );
 
 
-            this.history = [];
+            this.history =
+                [];
 
 
             sessionStorage.removeItem(
@@ -689,13 +733,14 @@ class ChatModule {
 
 
     /* =====================================
-       LIMPIAR CONVERSACIÓN
+       LIMPIAR CHAT
     ===================================== */
 
     clearChat() {
 
         if (
-            this.history.length === 0
+            this.history.length ===
+            0
         ) {
 
             StatusManager.show(
@@ -708,18 +753,19 @@ class ChatModule {
         }
 
 
-        const confirmClear =
+        const confirmed =
             window.confirm(
                 "¿Deseas eliminar toda la conversación de esta sesión?"
             );
 
 
-        if (!confirmClear) {
+        if (!confirmed) {
             return;
         }
 
 
-        this.history = [];
+        this.history =
+            [];
 
 
         sessionStorage.removeItem(
@@ -784,7 +830,6 @@ class ChatModule {
                     button.classList.remove(
                         "copied"
                     );
-
                 },
                 1500
             );
@@ -809,7 +854,7 @@ class ChatModule {
 
 
 /* =========================================
-   CLASE BASE PARA MANEJO DE ARCHIVOS
+   CLASE BASE PARA ARCHIVOS
 ========================================= */
 
 class FileModule {
@@ -821,24 +866,32 @@ class FileModule {
                 config.formId
             );
 
+
         this.input =
             document.getElementById(
                 config.inputId
             );
+
 
         this.fileName =
             document.getElementById(
                 config.fileNameId
             );
 
+
         this.statusId =
             config.statusId;
 
+
         this.allowedExtensions =
-            config.allowedExtensions;
+            config.allowedExtensions ||
+            [];
+
 
         this.maxSizeMB =
-            config.maxSizeMB;
+            config.maxSizeMB ||
+            4;
+
 
         this.previewContainer =
             config.previewContainerId
@@ -847,12 +900,14 @@ class FileModule {
                 )
                 : null;
 
+
         this.preview =
             config.previewId
                 ? document.getElementById(
                     config.previewId
                 )
                 : null;
+
 
         this.previewUrl =
             null;
@@ -874,15 +929,21 @@ class FileModule {
 
         this.input.addEventListener(
             "change",
-            () =>
-                this.handleFileSelection()
+            () => {
+
+                this.handleFileSelection();
+            }
         );
 
 
         this.form.addEventListener(
             "submit",
-            (event) =>
-                this.handleSubmit(event)
+            (event) => {
+
+                this.handleSubmit(
+                    event
+                );
+            }
         );
     }
 
@@ -916,7 +977,8 @@ class FileModule {
         if (!file) {
 
             return {
-                valid: false,
+                valid:
+                    false,
 
                 message:
                     "Selecciona un archivo."
@@ -937,10 +999,26 @@ class FileModule {
         ) {
 
             return {
-                valid: false,
+                valid:
+                    false,
 
                 message:
                     "El formato del archivo no está permitido."
+            };
+        }
+
+
+        if (
+            file.size ===
+            0
+        ) {
+
+            return {
+                valid:
+                    false,
+
+                message:
+                    "El archivo seleccionado está vacío."
             };
         }
 
@@ -957,7 +1035,8 @@ class FileModule {
         ) {
 
             return {
-                valid: false,
+                valid:
+                    false,
 
                 message:
                     `El archivo supera el límite de ${this.maxSizeMB} MB.`
@@ -965,21 +1044,9 @@ class FileModule {
         }
 
 
-        if (
-            file.size === 0
-        ) {
-
-            return {
-                valid: false,
-
-                message:
-                    "El archivo seleccionado está vacío."
-            };
-        }
-
-
         return {
-            valid: true,
+            valid:
+                true,
 
             message:
                 "Archivo válido."
@@ -1033,9 +1100,7 @@ class FileModule {
 
             this.resetFileName();
 
-
             this.hidePreview();
-
 
             return;
         }
@@ -1073,50 +1138,16 @@ class FileModule {
         event.preventDefault();
 
 
-        const file =
-            this.input.files[0];
-
-
-        if (!file) {
-
-            StatusManager.show(
-                this.statusId,
-                "warning",
-                "Selecciona un archivo antes de continuar."
-            );
-
-            return;
-        }
-
-
-        const validation =
-            this.validateFile(
-                file
-            );
-
-
-        if (!validation.valid) {
-
-            StatusManager.show(
-                this.statusId,
-                "error",
-                validation.message
-            );
-
-            return;
-        }
-
-
         StatusManager.show(
             this.statusId,
-            "success",
-            "Archivo válido y listo para procesarse."
+            "warning",
+            "Este tipo de archivo aún no tiene un módulo de procesamiento asignado."
         );
     }
 
 
     /* =====================================
-       VISTA PREVIA
+       VISTA PREVIA DE IMAGEN
     ===================================== */
 
     showImagePreview(file) {
@@ -1156,7 +1187,7 @@ class FileModule {
 
 
     /* =====================================
-       OCULTAR VISTA PREVIA
+       OCULTAR PREVIEW
     ===================================== */
 
     hidePreview() {
@@ -1209,405 +1240,9 @@ class FileModule {
 
 }
 
-/* =========================================
-   MÓDULO ESPECÍFICO DE DOCUMENTOS
-========================================= */
-
-class DocumentModule extends FileModule {
-
-    constructor(config) {
-
-        super(config);
-
-
-        this.apiUrl =
-            config.apiUrl;
-
-
-        this.submitButton =
-            document.getElementById(
-                config.submitButtonId
-            );
-
-
-        this.resultContainer =
-            document.getElementById(
-                config.resultContainerId
-            );
-
-
-        this.originalText =
-            document.getElementById(
-                config.originalTextId
-            );
-
-
-        this.translatedText =
-            document.getElementById(
-                config.translatedTextId
-            );
-
-    }
-
-
-    /* =====================================
-       SELECCIONAR NUEVO DOCUMENTO
-    ===================================== */
-
-    handleFileSelection() {
-
-        /*
-         * Ocultar resultados anteriores
-         * cuando se seleccione otro archivo.
-         */
-
-        this.hideResult();
-
-
-        /*
-         * Mantener la validación
-         * original de FileModule.
-         */
-
-        super.handleFileSelection();
-
-    }
-
-
-    /* =====================================
-       PROCESAR DOCUMENTO
-    ===================================== */
-
-    async handleSubmit(event) {
-
-        event.preventDefault();
-
-
-        const file =
-            this.input.files[0];
-
-
-        /* ---------------------------------
-           SIN ARCHIVO
-        --------------------------------- */
-
-        if (!file) {
-
-            StatusManager.show(
-                this.statusId,
-                "warning",
-                "Selecciona un documento antes de continuar."
-            );
-
-            return;
-
-        }
-
-
-        /* ---------------------------------
-           VALIDAR ARCHIVO
-        --------------------------------- */
-
-        const validation =
-            this.validateFile(
-                file
-            );
-
-
-        if (!validation.valid) {
-
-            StatusManager.show(
-                this.statusId,
-                "error",
-                validation.message
-            );
-
-            return;
-
-        }
-
-
-        try {
-
-            /*
-             * Limpiar resultado anterior.
-             */
-
-            this.hideResult();
-
-
-            /*
-             * Bloquear botón mientras
-             * se procesa.
-             */
-
-            this.setLoading(true);
-
-
-            /*
-             * Mostrar estado.
-             */
-
-            StatusManager.show(
-                this.statusId,
-                "loading",
-                "Leyendo y traduciendo el documento..."
-            );
-
-
-            /* ---------------------------------
-               CREAR FORMDATA
-            --------------------------------- */
-
-            const formData =
-                new FormData();
-
-
-            formData.append(
-                "document",
-                file,
-                file.name
-            );
-
-
-            /*
-             * IMPORTANTE:
-             *
-             * No establecer manualmente
-             * Content-Type.
-             *
-             * El navegador agregará
-             * multipart/form-data y su boundary.
-             */
-
-            const response =
-                await fetch(
-                    this.apiUrl,
-                    {
-                        method:
-                            "POST",
-
-                        body:
-                            formData
-                    }
-                );
-
-
-            /* ---------------------------------
-               LEER RESPUESTA
-            --------------------------------- */
-
-            let data = {};
-
-
-            try {
-
-                data =
-                    await response.json();
-
-            } catch {
-
-                throw new Error(
-                    "El servidor devolvió una respuesta no válida."
-                );
-
-            }
-
-
-            /* ---------------------------------
-               ERROR DEL BACKEND
-            --------------------------------- */
-
-            if (!response.ok) {
-
-                throw new Error(
-                    data.error ||
-                    "No fue posible procesar el documento."
-                );
-
-            }
-
-
-            /* ---------------------------------
-               VALIDAR RESPUESTA
-            --------------------------------- */
-
-            if (
-                !data.original_text ||
-                !data.translation
-            ) {
-
-                throw new Error(
-                    "La respuesta del documento está incompleta."
-                );
-
-            }
-
-
-            /* ---------------------------------
-               MOSTRAR TEXTO ORIGINAL
-            --------------------------------- */
-
-            if (this.originalText) {
-
-                this.originalText.textContent =
-                    data.original_text;
-
-            }
-
-
-            /* ---------------------------------
-               MOSTRAR TRADUCCIÓN
-            --------------------------------- */
-
-            if (this.translatedText) {
-
-                this.translatedText.textContent =
-                    data.translation;
-
-            }
-
-
-            /* ---------------------------------
-               MOSTRAR RESULTADO
-            --------------------------------- */
-
-            if (this.resultContainer) {
-
-                this.resultContainer
-                    .classList
-                    .remove(
-                        "d-none"
-                    );
-
-            }
-
-
-            /* ---------------------------------
-               MENSAJE DE ÉXITO
-            --------------------------------- */
-
-            StatusManager.show(
-                this.statusId,
-                "success",
-                `Documento traducido correctamente: ${this.getLanguageName(data.source_language)} → ${this.getLanguageName(data.target_language)}.`
-            );
-
-        } catch (error) {
-
-            console.error(
-                "Error procesando documento:",
-                error
-            );
-
-
-            this.hideResult();
-
-
-            StatusManager.show(
-                this.statusId,
-                "error",
-                error.message ||
-                "No fue posible conectar con el servicio de documentos."
-            );
-
-        } finally {
-
-            this.setLoading(false);
-
-        }
-
-    }
-
-
-    /* =====================================
-       OCULTAR RESULTADO
-    ===================================== */
-
-    hideResult() {
-
-        if (this.resultContainer) {
-
-            this.resultContainer
-                .classList
-                .add(
-                    "d-none"
-                );
-
-        }
-
-
-        if (this.originalText) {
-
-            this.originalText.textContent =
-                "";
-
-        }
-
-
-        if (this.translatedText) {
-
-            this.translatedText.textContent =
-                "";
-
-        }
-
-    }
-
-
-    /* =====================================
-       ESTADO DEL BOTÓN
-    ===================================== */
-
-    setLoading(isLoading) {
-
-        if (!this.submitButton) {
-
-            return;
-
-        }
-
-
-        this.submitButton.disabled =
-            isLoading;
-
-
-        this.submitButton.textContent =
-            isLoading
-                ? "Procesando..."
-                : "Traducir documento";
-
-    }
-
-
-    /* =====================================
-       NOMBRE DEL IDIOMA
-    ===================================== */
-
-    getLanguageName(language) {
-
-        const languages = {
-
-            es:
-                "Español",
-
-            en:
-                "Inglés"
-        };
-
-
-        return (
-            languages[language] ||
-            language
-        );
-
-    }
-
-}
-
 
 /* =========================================
-   MÓDULO ESPECÍFICO DE AUDIO
+   MÓDULO DE AUDIO
 ========================================= */
 
 class AudioModule extends FileModule {
@@ -1651,31 +1286,19 @@ class AudioModule extends FileModule {
 
         this.speechUrl =
             null;
-
     }
 
 
     /* =====================================
-       SELECCIONAR NUEVO AUDIO
+       ARCHIVO DE AUDIO SELECCIONADO
     ===================================== */
 
     handleFileSelection() {
 
-        /*
-         * Ocultar el resultado anterior
-         * cuando se selecciona otro archivo.
-         */
-
         this.hideResult();
 
 
-        /*
-         * Ejecutar las validaciones
-         * de FileModule.
-         */
-
         super.handleFileSelection();
-
     }
 
 
@@ -1692,10 +1315,6 @@ class AudioModule extends FileModule {
             this.input.files[0];
 
 
-        /* ---------------------------------
-           ARCHIVO NO SELECCIONADO
-        --------------------------------- */
-
         if (!file) {
 
             StatusManager.show(
@@ -1705,13 +1324,8 @@ class AudioModule extends FileModule {
             );
 
             return;
-
         }
 
-
-        /* ---------------------------------
-           VALIDAR ARCHIVO
-        --------------------------------- */
 
         const validation =
             this.validateFile(
@@ -1728,29 +1342,18 @@ class AudioModule extends FileModule {
             );
 
             return;
-
         }
 
 
         try {
 
-            /*
-             * Limpiar resultados anteriores.
-             */
-
             this.hideResult();
 
 
-            /*
-             * Bloquear botón.
-             */
+            this.setLoading(
+                true
+            );
 
-            this.setLoading(true);
-
-
-            /*
-             * Mostrar estado.
-             */
 
             StatusManager.show(
                 this.statusId,
@@ -1758,10 +1361,6 @@ class AudioModule extends FileModule {
                 "Procesando, transcribiendo y traduciendo el audio..."
             );
 
-
-            /* ---------------------------------
-               CREAR FORMDATA
-            --------------------------------- */
 
             const formData =
                 new FormData();
@@ -1773,16 +1372,6 @@ class AudioModule extends FileModule {
                 file.name
             );
 
-
-            /*
-             * IMPORTANTE:
-             *
-             * No agregamos manualmente
-             * Content-Type.
-             *
-             * El navegador genera automáticamente
-             * multipart/form-data con su boundary.
-             */
 
             const response =
                 await fetch(
@@ -1797,30 +1386,11 @@ class AudioModule extends FileModule {
                 );
 
 
-            /* ---------------------------------
-               LEER RESPUESTA JSON
-            --------------------------------- */
-
-            let data = {};
-
-
-            try {
-
-                data =
-                    await response.json();
-
-            } catch {
-
-                throw new Error(
-                    "El servidor devolvió una respuesta no válida."
+            const data =
+                await AppUtils.readJson(
+                    response
                 );
 
-            }
-
-
-            /* ---------------------------------
-               ERROR DEL BACKEND
-            --------------------------------- */
 
             if (!response.ok) {
 
@@ -1828,52 +1398,34 @@ class AudioModule extends FileModule {
                     data.error ||
                     "No fue posible procesar el audio."
                 );
-
             }
 
 
-            /* ---------------------------------
-               MOSTRAR TRANSCRIPCIÓN
-            --------------------------------- */
+            if (
+                !data.transcription ||
+                !data.translation
+            ) {
 
-            if (this.originalText) {
-
-                this.originalText.textContent =
-                    data.transcription;
-
+                throw new Error(
+                    "La respuesta del audio está incompleta."
+                );
             }
 
 
-            /* ---------------------------------
-               MOSTRAR TRADUCCIÓN
-            --------------------------------- */
-
-            if (this.translatedText) {
-
-                this.translatedText.textContent =
-                    data.translation;
-
-            }
+            this.originalText.textContent =
+                data.transcription;
 
 
-            /* ---------------------------------
-               MOSTRAR RESULTADO
-            --------------------------------- */
-
-            if (this.resultContainer) {
-
-                this.resultContainer
-                    .classList
-                    .remove(
-                        "d-none"
-                    );
-
-            }
+            this.translatedText.textContent =
+                data.translation;
 
 
-            /* =================================
-               GENERAR TRADUCCIÓN HABLADA
-            ================================= */
+            this.resultContainer
+                .classList
+                .remove(
+                    "d-none"
+                );
+
 
             StatusManager.show(
                 this.statusId,
@@ -1893,16 +1445,10 @@ class AudioModule extends FileModule {
                 StatusManager.show(
                     this.statusId,
                     "success",
-                    `Audio traducido correctamente: ${this.getLanguageName(data.source_language)} → ${this.getLanguageName(data.target_language)}.`
+                    `Audio traducido correctamente: ${AppUtils.getLanguageName(data.source_language)} → ${AppUtils.getLanguageName(data.target_language)}.`
                 );
 
             } catch (speechError) {
-
-                /*
-                 * Si falla solamente TTS,
-                 * mantenemos visibles la
-                 * transcripción y traducción.
-                 */
 
                 console.error(
                     "Error generando voz:",
@@ -1915,7 +1461,6 @@ class AudioModule extends FileModule {
                     "warning",
                     "La transcripción y traducción se completaron, pero no fue posible generar la voz traducida."
                 );
-
             }
 
         } catch (error) {
@@ -1938,15 +1483,15 @@ class AudioModule extends FileModule {
 
         } finally {
 
-            this.setLoading(false);
-
+            this.setLoading(
+                false
+            );
         }
-
     }
 
 
     /* =====================================
-       GENERAR VOZ TRADUCIDA
+       GENERAR AUDIO TRADUCIDO
     ===================================== */
 
     async generateSpeech(
@@ -1968,12 +1513,10 @@ class AudioModule extends FileModule {
 
                     body:
                         JSON.stringify({
-
                             action:
                                 "speech",
 
-                            text:
-                                text,
+                            text,
 
                             target_language:
                                 targetLanguage
@@ -1982,30 +1525,33 @@ class AudioModule extends FileModule {
             );
 
 
-        /*
-         * Si hubo error, el backend
-         * responderá JSON.
-         */
-
         if (!response.ok) {
 
-            const message =
-                await this.readErrorResponse(
-                    response
-                );
+            let message =
+                "No fue posible generar la voz traducida.";
+
+
+            try {
+
+                const data =
+                    await response.json();
+
+
+                message =
+                    data.error ||
+                    message;
+
+            } catch {
+
+                // Se conserva el mensaje genérico.
+            }
 
 
             throw new Error(
                 message
             );
-
         }
 
-
-        /*
-         * Si funcionó, la respuesta
-         * será audio/mpeg.
-         */
 
         const audioBlob =
             await response.blob();
@@ -2019,34 +1565,19 @@ class AudioModule extends FileModule {
             throw new Error(
                 "El audio traducido recibido está vacío."
             );
-
         }
 
 
-        /*
-         * Crear reproductor si aún
-         * no existe.
-         */
-
         this.ensureAudioPlayer();
 
-
-        /*
-         * Liberar URL anterior.
-         */
 
         if (this.speechUrl) {
 
             URL.revokeObjectURL(
                 this.speechUrl
             );
-
         }
 
-
-        /*
-         * Crear URL temporal del MP3.
-         */
 
         this.speechUrl =
             URL.createObjectURL(
@@ -2054,46 +1585,11 @@ class AudioModule extends FileModule {
             );
 
 
-        /*
-         * Asignar audio al reproductor.
-         */
-
         this.audioPlayer.src =
             this.speechUrl;
 
 
         this.audioPlayer.load();
-
-    }
-
-
-    /* =====================================
-       LEER ERROR DEL BACKEND
-    ===================================== */
-
-    async readErrorResponse(
-        response
-    ) {
-
-        try {
-
-            const data =
-                await response.json();
-
-
-            return (
-                data.error ||
-                "No fue posible generar la voz traducida."
-            );
-
-        } catch {
-
-            return (
-                "No fue posible generar la voz traducida."
-            );
-
-        }
-
     }
 
 
@@ -2103,27 +1599,13 @@ class AudioModule extends FileModule {
 
     ensureAudioPlayer() {
 
-        /*
-         * Si ya existe, no crear otro.
-         */
-
-        if (this.audioPlayer) {
-
+        if (
+            this.audioPlayer ||
+            !this.resultContainer
+        ) {
             return;
-
         }
 
-
-        if (!this.resultContainer) {
-
-            return;
-
-        }
-
-
-        /*
-         * Contenedor del reproductor.
-         */
 
         const playerContainer =
             document.createElement(
@@ -2139,10 +1621,6 @@ class AudioModule extends FileModule {
             "mt-3 border rounded p-3";
 
 
-        /*
-         * Título.
-         */
-
         const title =
             document.createElement(
                 "h4"
@@ -2156,10 +1634,6 @@ class AudioModule extends FileModule {
         title.textContent =
             "Traducción hablada";
 
-
-        /*
-         * Reproductor.
-         */
 
         const audio =
             document.createElement(
@@ -2183,10 +1657,6 @@ class AudioModule extends FileModule {
             "w-100";
 
 
-        /*
-         * Construir sección.
-         */
-
         playerContainer.appendChild(
             title
         );
@@ -2204,12 +1674,11 @@ class AudioModule extends FileModule {
 
         this.audioPlayer =
             audio;
-
     }
 
 
     /* =====================================
-       OCULTAR RESULTADO
+       OCULTAR RESULTADO AUDIO
     ===================================== */
 
     hideResult() {
@@ -2221,7 +1690,6 @@ class AudioModule extends FileModule {
                 .add(
                     "d-none"
                 );
-
         }
 
 
@@ -2229,7 +1697,6 @@ class AudioModule extends FileModule {
 
             this.originalText.textContent =
                 "";
-
         }
 
 
@@ -2237,14 +1704,8 @@ class AudioModule extends FileModule {
 
             this.translatedText.textContent =
                 "";
-
         }
 
-
-        /*
-         * Liberar archivo de audio
-         * generado anteriormente.
-         */
 
         if (this.speechUrl) {
 
@@ -2255,7 +1716,6 @@ class AudioModule extends FileModule {
 
             this.speechUrl =
                 null;
-
         }
 
 
@@ -2270,22 +1730,18 @@ class AudioModule extends FileModule {
 
 
             this.audioPlayer.load();
-
         }
-
     }
 
 
     /* =====================================
-       ESTADO DEL BOTÓN
+       ESTADO BOTÓN AUDIO
     ===================================== */
 
     setLoading(isLoading) {
 
         if (!this.submitButton) {
-
             return;
-
         }
 
 
@@ -2297,37 +1753,287 @@ class AudioModule extends FileModule {
             isLoading
                 ? "Procesando..."
                 : "Traducir audio";
-
-    }
-
-
-    /* =====================================
-       NOMBRE DEL IDIOMA
-    ===================================== */
-
-    getLanguageName(language) {
-
-        const languages = {
-
-            es:
-                "Español",
-
-            en:
-                "Inglés"
-        };
-
-
-        return (
-            languages[language] ||
-            language
-        );
-
     }
 
 }
 
+
 /* =========================================
-   MÓDULO ESPECÍFICO DE IMÁGENES
+   MÓDULO DE DOCUMENTOS
+========================================= */
+
+class DocumentModule extends FileModule {
+
+    constructor(config) {
+
+        super(config);
+
+
+        this.apiUrl =
+            config.apiUrl;
+
+
+        this.submitButton =
+            document.getElementById(
+                config.submitButtonId
+            );
+
+
+        this.resultContainer =
+            document.getElementById(
+                config.resultContainerId
+            );
+
+
+        this.originalText =
+            document.getElementById(
+                config.originalTextId
+            );
+
+
+        this.translatedText =
+            document.getElementById(
+                config.translatedTextId
+            );
+    }
+
+
+    /* =====================================
+       DOCUMENTO SELECCIONADO
+    ===================================== */
+
+    handleFileSelection() {
+
+        this.hideResult();
+
+
+        super.handleFileSelection();
+    }
+
+
+    /* =====================================
+       TRADUCIR DOCUMENTO
+    ===================================== */
+
+    async handleSubmit(event) {
+
+        event.preventDefault();
+
+
+        const file =
+            this.input.files[0];
+
+
+        if (!file) {
+
+            StatusManager.show(
+                this.statusId,
+                "warning",
+                "Selecciona un documento antes de continuar."
+            );
+
+            return;
+        }
+
+
+        const validation =
+            this.validateFile(
+                file
+            );
+
+
+        if (!validation.valid) {
+
+            StatusManager.show(
+                this.statusId,
+                "error",
+                validation.message
+            );
+
+            return;
+        }
+
+
+        try {
+
+            this.hideResult();
+
+
+            this.setLoading(
+                true
+            );
+
+
+            StatusManager.show(
+                this.statusId,
+                "loading",
+                "Leyendo y traduciendo el documento..."
+            );
+
+
+            const formData =
+                new FormData();
+
+
+            formData.append(
+                "document",
+                file,
+                file.name
+            );
+
+
+            /*
+             * No se agrega Content-Type
+             * manualmente.
+             *
+             * El navegador crea el boundary
+             * para multipart/form-data.
+             */
+
+            const response =
+                await fetch(
+                    this.apiUrl,
+                    {
+                        method:
+                            "POST",
+
+                        body:
+                            formData
+                    }
+                );
+
+
+            const data =
+                await AppUtils.readJson(
+                    response
+                );
+
+
+            if (!response.ok) {
+
+                throw new Error(
+                    data.error ||
+                    "No fue posible procesar el documento."
+                );
+            }
+
+
+            if (
+                !data.original_text ||
+                !data.translation
+            ) {
+
+                throw new Error(
+                    "La respuesta del documento está incompleta."
+                );
+            }
+
+
+            this.originalText.textContent =
+                data.original_text;
+
+
+            this.translatedText.textContent =
+                data.translation;
+
+
+            this.resultContainer
+                .classList
+                .remove(
+                    "d-none"
+                );
+
+
+            StatusManager.show(
+                this.statusId,
+                "success",
+                `Documento traducido correctamente: ${AppUtils.getLanguageName(data.source_language)} → ${AppUtils.getLanguageName(data.target_language)}.`
+            );
+
+        } catch (error) {
+
+            console.error(
+                "Error procesando documento:",
+                error
+            );
+
+
+            this.hideResult();
+
+
+            StatusManager.show(
+                this.statusId,
+                "error",
+                error.message ||
+                "No fue posible conectar con el servicio de documentos."
+            );
+
+        } finally {
+
+            this.setLoading(
+                false
+            );
+        }
+    }
+
+
+    /* =====================================
+       OCULTAR RESULTADO DOCUMENTO
+    ===================================== */
+
+    hideResult() {
+
+        if (this.resultContainer) {
+
+            this.resultContainer
+                .classList
+                .add(
+                    "d-none"
+                );
+        }
+
+
+        if (this.originalText) {
+
+            this.originalText.textContent =
+                "";
+        }
+
+
+        if (this.translatedText) {
+
+            this.translatedText.textContent =
+                "";
+        }
+    }
+
+
+    /* =====================================
+       ESTADO BOTÓN DOCUMENTO
+    ===================================== */
+
+    setLoading(isLoading) {
+
+        if (!this.submitButton) {
+            return;
+        }
+
+
+        this.submitButton.disabled =
+            isLoading;
+
+
+        this.submitButton.textContent =
+            isLoading
+                ? "Procesando..."
+                : "Traducir documento";
+    }
+
+}
+
+
+/* =========================================
+   MÓDULO DE IMÁGENES
 ========================================= */
 
 class ImageModule extends FileModule {
@@ -2367,23 +2073,13 @@ class ImageModule extends FileModule {
 
 
     /* =====================================
-       SELECCIONAR NUEVA IMAGEN
+       IMAGEN SELECCIONADA
     ===================================== */
 
     handleFileSelection() {
 
-        /*
-         * Ocultar resultado anterior
-         * cuando el usuario cambia de imagen.
-         */
-
         this.hideResult();
 
-
-        /*
-         * Utilizar validaciones y preview
-         * de la clase FileModule.
-         */
 
         super.handleFileSelection();
     }
@@ -2434,18 +2130,12 @@ class ImageModule extends FileModule {
 
         try {
 
-            /*
-             * Ocultar resultados anteriores
-             */
-
             this.hideResult();
 
 
-            /*
-             * Bloquear botón
-             */
-
-            this.setLoading(true);
+            this.setLoading(
+                true
+            );
 
 
             StatusManager.show(
@@ -2455,58 +2145,38 @@ class ImageModule extends FileModule {
             );
 
 
-            /*
-             * Convertir imagen a Data URL
-             */
-
             const imageData =
                 await this.fileToDataURL(
                     file
                 );
 
 
-            /*
-             * Enviar imagen al backend
-             */
-
             const response =
                 await fetch(
                     this.apiUrl,
                     {
-                        method: "POST",
+                        method:
+                            "POST",
 
                         headers: {
                             "Content-Type":
                                 "application/json"
                         },
 
-                        body: JSON.stringify({
-                            image_data:
-                                imageData
-                        })
+                        body:
+                            JSON.stringify({
+                                image_data:
+                                    imageData
+                            })
                     }
                 );
 
 
-            let data = {};
-
-
-            try {
-
-                data =
-                    await response.json();
-
-            } catch {
-
-                throw new Error(
-                    "El servidor devolvió una respuesta no válida."
+            const data =
+                await AppUtils.readJson(
+                    response
                 );
-            }
 
-
-            /*
-             * Error controlado por backend
-             */
 
             if (!response.ok) {
 
@@ -2517,25 +2187,24 @@ class ImageModule extends FileModule {
             }
 
 
-            /*
-             * Mostrar texto detectado
-             */
+            if (
+                !data.detected_text ||
+                !data.translation
+            ) {
+
+                throw new Error(
+                    "La respuesta de la imagen está incompleta."
+                );
+            }
+
 
             this.originalText.textContent =
                 data.detected_text;
 
 
-            /*
-             * Mostrar traducción
-             */
-
             this.translatedText.textContent =
                 data.translation;
 
-
-            /*
-             * Mostrar contenedor resultado
-             */
 
             this.resultContainer
                 .classList
@@ -2547,7 +2216,7 @@ class ImageModule extends FileModule {
             StatusManager.show(
                 this.statusId,
                 "success",
-                `Imagen traducida correctamente: ${this.getLanguageName(data.source_language)} → ${this.getLanguageName(data.target_language)}.`
+                `Imagen traducida correctamente: ${AppUtils.getLanguageName(data.source_language)} → ${AppUtils.getLanguageName(data.target_language)}.`
             );
 
         } catch (error) {
@@ -2570,19 +2239,24 @@ class ImageModule extends FileModule {
 
         } finally {
 
-            this.setLoading(false);
+            this.setLoading(
+                false
+            );
         }
     }
 
 
     /* =====================================
-       CONVERTIR ARCHIVO A DATA URL
+       CONVERTIR IMAGEN A DATA URL
     ===================================== */
 
     fileToDataURL(file) {
 
         return new Promise(
-            (resolve, reject) => {
+            (
+                resolve,
+                reject
+            ) => {
 
                 const reader =
                     new FileReader();
@@ -2617,7 +2291,7 @@ class ImageModule extends FileModule {
 
 
     /* =====================================
-       OCULTAR RESULTADO
+       OCULTAR RESULTADO IMAGEN
     ===================================== */
 
     hideResult() {
@@ -2648,7 +2322,7 @@ class ImageModule extends FileModule {
 
 
     /* =====================================
-       CARGANDO
+       ESTADO BOTÓN IMAGEN
     ===================================== */
 
     setLoading(isLoading) {
@@ -2666,25 +2340,6 @@ class ImageModule extends FileModule {
             isLoading
                 ? "Traduciendo..."
                 : "Traducir imagen";
-    }
-
-
-    /* =====================================
-       NOMBRE DEL IDIOMA
-    ===================================== */
-
-    getLanguageName(language) {
-
-        const languages = {
-            es: "Español",
-            en: "Inglés"
-        };
-
-
-        return (
-            languages[language] ||
-            language
-        );
     }
 
 }
@@ -2714,66 +2369,66 @@ class TranslatorApp {
 
     init() {
 
-        /* =================================
+        /* ===============================
            CHAT
-        ================================= */
+        =============================== */
 
         this.chat =
             new ChatModule();
 
 
-        /* =================================
+        /* ===============================
            AUDIO
-        ================================= */
+        =============================== */
 
         this.audio =
-    new AudioModule({
+            new AudioModule({
 
-        formId:
-            "audioForm",
+                formId:
+                    "audioForm",
 
-        inputId:
-            "audioInput",
+                inputId:
+                    "audioInput",
 
-        fileNameId:
-            "audioFileName",
+                fileNameId:
+                    "audioFileName",
 
-        statusId:
-            "audioStatus",
+                statusId:
+                    "audioStatus",
 
-        allowedExtensions: [
-            "mp3",
-            "wav",
-            "m4a",
-            "webm"
-        ],
+                allowedExtensions: [
+                    "mp3",
+                    "wav",
+                    "m4a",
+                    "webm"
+                ],
 
-        maxSizeMB:
-            4,
+                maxSizeMB:
+                    4,
 
-        submitButtonId:
-            "translateAudioButton",
+                submitButtonId:
+                    "translateAudioButton",
 
-        resultContainerId:
-            "audioResult",
+                resultContainerId:
+                    "audioResult",
 
-        originalTextId:
-            "audioOriginalText",
+                originalTextId:
+                    "audioOriginalText",
 
-        translatedTextId:
-            "audioTranslatedText",
+                translatedTextId:
+                    "audioTranslatedText",
 
-        apiUrl:
-            AUDIO_API_URL
-    });
+                apiUrl:
+                    AUDIO_API_URL
+            });
 
 
-        /* =================================
+        /* ===============================
            DOCUMENTOS
-        ================================= */
+        =============================== */
 
         this.documents =
-            new FileModule({
+            new DocumentModule({
 
                 formId:
                     "documentForm",
@@ -2794,13 +2449,28 @@ class TranslatorApp {
                 ],
 
                 maxSizeMB:
-                    4
+                    4,
+
+                submitButtonId:
+                    "translateDocumentButton",
+
+                resultContainerId:
+                    "documentResult",
+
+                originalTextId:
+                    "documentOriginalText",
+
+                translatedTextId:
+                    "documentTranslatedText",
+
+                apiUrl:
+                    DOCUMENT_API_URL
             });
 
 
-        /* =================================
+        /* ===============================
            IMÁGENES
-        ================================= */
+        =============================== */
 
         this.images =
             new ImageModule({
@@ -2823,10 +2493,6 @@ class TranslatorApp {
                     "jpeg",
                     "webp"
                 ],
-
-                /*
-                 * Imágenes: máximo 3 MB.
-                 */
 
                 maxSizeMB:
                     3,
