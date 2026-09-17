@@ -788,3 +788,74 @@ footer p:first-child {
     }
 
 }
+
+/* =========================================
+   BOTÓN LIMPIAR CONVERSACIÓN
+========================================= */
+
+.btn-clear-chat {
+    background-color: #ffffff;
+    color: #dc3545;
+
+    border: 1px solid #dc3545;
+
+    border-radius: 10px;
+
+    padding: 9px 15px;
+
+    font-size: 0.9rem;
+    font-weight: 600;
+
+    cursor: pointer;
+
+    transition: all 0.25s ease;
+}
+
+.btn-clear-chat:hover {
+    background-color: #dc3545;
+    color: #ffffff;
+
+    transform: translateY(-2px);
+}
+
+
+/* =========================================
+   BOTÓN COPIAR
+========================================= */
+
+.copy-translation-button {
+    margin-top: 10px;
+
+    padding: 6px 11px;
+
+    background-color: #ffffff;
+
+    color: var(--primary-color);
+
+    border: 1px solid var(--primary-color);
+
+    border-radius: 8px;
+
+    font-size: 0.82rem;
+    font-weight: 600;
+
+    cursor: pointer;
+
+    transition: all 0.25s ease;
+}
+
+.copy-translation-button:hover {
+    background-color: var(--primary-color);
+    color: #ffffff;
+}
+
+
+/* =========================================
+   MENSAJE DE COPIADO
+========================================= */
+
+.copy-translation-button.copied {
+    background-color: var(--success-color);
+    border-color: var(--success-color);
+    color: #ffffff;
+}
