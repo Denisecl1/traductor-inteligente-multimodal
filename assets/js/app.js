@@ -50,9 +50,7 @@ class StatusManager {
         element.textContent =
             `${icons[type] || ""} ${message}`;
 
-        container.appendChild(
-            element
-        );
+        container.appendChild(element);
     }
 
 
@@ -65,7 +63,6 @@ class StatusManager {
             container.innerHTML = "";
         }
     }
-
 }
 
 
@@ -104,6 +101,78 @@ class AppUtils {
         }
     }
 
+
+    static async copyText(
+        text,
+        button,
+        statusId
+    ) {
+
+        const cleanText =
+            String(text || "").trim();
+
+
+        if (!cleanText) {
+
+            StatusManager.show(
+                statusId,
+                "warning",
+                "No hay texto disponible para copiar."
+            );
+
+            return;
+        }
+
+
+        try {
+
+            await navigator.clipboard.writeText(
+                cleanText
+            );
+
+
+            const originalButtonText =
+                button.textContent;
+
+
+            button.textContent =
+                "✓ Copiado";
+
+
+            button.classList.add(
+                "copied"
+            );
+
+
+            setTimeout(
+                () => {
+
+                    button.textContent =
+                        originalButtonText;
+
+
+                    button.classList.remove(
+                        "copied"
+                    );
+                },
+                1500
+            );
+
+        } catch (error) {
+
+            console.error(
+                "Error al copiar:",
+                error
+            );
+
+
+            StatusManager.show(
+                statusId,
+                "error",
+                "No fue posible copiar el texto."
+            );
+        }
+    }
 }
 
 
@@ -120,43 +189,54 @@ class ChatModule {
                 "chatForm"
             );
 
+
         this.messageInput =
             document.getElementById(
                 "messageInput"
             );
+
 
         this.characterCounter =
             document.getElementById(
                 "characterCounter"
             );
 
+
         this.participantSelect =
             document.getElementById(
                 "participantSelect"
             );
+
 
         this.messages =
             document.getElementById(
                 "chatMessages"
             );
 
+
         this.sendButton =
             document.getElementById(
                 "sendMessageButton"
             );
+
 
         this.clearChatButton =
             document.getElementById(
                 "clearChatButton"
             );
 
+
         this.maxCharacters =
             1000;
+
 
         this.storageKey =
             "translatorChatHistory";
 
-        this.history = [];
+
+        this.history =
+            [];
+
 
         this.init();
     }
@@ -169,6 +249,7 @@ class ChatModule {
             !this.messageInput ||
             !this.messages
         ) {
+
             return;
         }
 
@@ -176,6 +257,7 @@ class ChatModule {
         this.messageInput.addEventListener(
             "input",
             () => {
+
                 this.updateCharacterCounter();
             }
         );
@@ -184,7 +266,10 @@ class ChatModule {
         this.form.addEventListener(
             "submit",
             (event) => {
-                this.handleSubmit(event);
+
+                this.handleSubmit(
+                    event
+                );
             }
         );
 
@@ -194,6 +279,7 @@ class ChatModule {
             this.clearChatButton.addEventListener(
                 "click",
                 () => {
+
                     this.clearChat();
                 }
             );
@@ -201,6 +287,7 @@ class ChatModule {
 
 
         this.loadHistory();
+
 
         this.updateCharacterCounter();
     }
@@ -216,6 +303,7 @@ class ChatModule {
             !this.characterCounter ||
             !this.messageInput
         ) {
+
             return;
         }
 
@@ -248,7 +336,9 @@ class ChatModule {
                 "Escribe un mensaje antes de enviarlo."
             );
 
+
             this.messageInput.focus();
+
 
             return;
         }
@@ -264,6 +354,7 @@ class ChatModule {
                 "error",
                 `El mensaje no puede superar ${this.maxCharacters} caracteres.`
             );
+
 
             return;
         }
@@ -467,7 +558,7 @@ class ChatModule {
                 : "Participante 2";
 
 
-        /* ORIGINAL */
+        /* TEXTO ORIGINAL */
 
         const originalElement =
             document.createElement(
@@ -549,35 +640,87 @@ class ChatModule {
         );
 
 
-        /* BOTÓN COPIAR */
+        /* BOTONES DE COPIAR */
 
-        const copyButton =
+        const copyButtonsContainer =
+            document.createElement(
+                "div"
+            );
+
+
+        copyButtonsContainer.className =
+            "d-flex flex-wrap gap-2 mt-3";
+
+
+        const copyOriginalButton =
             document.createElement(
                 "button"
             );
 
 
-        copyButton.type =
+        copyOriginalButton.type =
             "button";
 
 
-        copyButton.className =
+        copyOriginalButton.className =
             "copy-translation-button";
 
 
-        copyButton.textContent =
-            "📋 Copiar traducción";
+        copyOriginalButton.textContent =
+            "📋 Copiar original";
 
 
-        copyButton.addEventListener(
+        copyOriginalButton.addEventListener(
             "click",
             () => {
 
-                this.copyTranslation(
-                    translation,
-                    copyButton
+                AppUtils.copyText(
+                    original,
+                    copyOriginalButton,
+                    "chatStatus"
                 );
             }
+        );
+
+
+        const copyTranslationButton =
+            document.createElement(
+                "button"
+            );
+
+
+        copyTranslationButton.type =
+            "button";
+
+
+        copyTranslationButton.className =
+            "copy-translation-button";
+
+
+        copyTranslationButton.textContent =
+            "📋 Copiar traducción";
+
+
+        copyTranslationButton.addEventListener(
+            "click",
+            () => {
+
+                AppUtils.copyText(
+                    translation,
+                    copyTranslationButton,
+                    "chatStatus"
+                );
+            }
+        );
+
+
+        copyButtonsContainer.appendChild(
+            copyOriginalButton
+        );
+
+
+        copyButtonsContainer.appendChild(
+            copyTranslationButton
         );
 
 
@@ -597,7 +740,7 @@ class ChatModule {
 
 
         messageContainer.appendChild(
-            copyButton
+            copyButtonsContainer
         );
 
 
@@ -612,12 +755,13 @@ class ChatModule {
 
 
     /* =====================================
-       ESTADO BOTÓN
+       ESTADO DEL BOTÓN
     ===================================== */
 
     setLoading(isLoading) {
 
         if (!this.sendButton) {
+
             return;
         }
 
@@ -676,6 +820,7 @@ class ChatModule {
 
 
         if (!savedHistory) {
+
             return;
         }
 
@@ -749,6 +894,7 @@ class ChatModule {
                 "La conversación ya está vacía."
             );
 
+
             return;
         }
 
@@ -760,6 +906,7 @@ class ChatModule {
 
 
         if (!confirmed) {
+
             return;
         }
 
@@ -789,67 +936,6 @@ class ChatModule {
 
         this.messageInput.focus();
     }
-
-
-    /* =====================================
-       COPIAR TRADUCCIÓN
-    ===================================== */
-
-    async copyTranslation(
-        translation,
-        button
-    ) {
-
-        try {
-
-            await navigator.clipboard.writeText(
-                translation
-            );
-
-
-            const originalText =
-                button.textContent;
-
-
-            button.textContent =
-                "✓ Copiado";
-
-
-            button.classList.add(
-                "copied"
-            );
-
-
-            setTimeout(
-                () => {
-
-                    button.textContent =
-                        originalText;
-
-
-                    button.classList.remove(
-                        "copied"
-                    );
-                },
-                1500
-            );
-
-        } catch (error) {
-
-            console.error(
-                "Error al copiar:",
-                error
-            );
-
-
-            StatusManager.show(
-                "chatStatus",
-                "error",
-                "No fue posible copiar la traducción."
-            );
-        }
-    }
-
 }
 
 
@@ -909,6 +995,46 @@ class FileModule {
                 : null;
 
 
+        this.clearButton =
+            config.clearButtonId
+                ? document.getElementById(
+                    config.clearButtonId
+                )
+                : null;
+
+
+        this.copyOriginalButton =
+            config.copyOriginalButtonId
+                ? document.getElementById(
+                    config.copyOriginalButtonId
+                )
+                : null;
+
+
+        this.copyTranslatedButton =
+            config.copyTranslatedButtonId
+                ? document.getElementById(
+                    config.copyTranslatedButtonId
+                )
+                : null;
+
+
+        this.originalText =
+            config.originalTextId
+                ? document.getElementById(
+                    config.originalTextId
+                )
+                : null;
+
+
+        this.translatedText =
+            config.translatedTextId
+                ? document.getElementById(
+                    config.translatedTextId
+                )
+                : null;
+
+
         this.previewUrl =
             null;
 
@@ -923,6 +1049,7 @@ class FileModule {
             !this.input ||
             !this.form
         ) {
+
             return;
         }
 
@@ -945,6 +1072,50 @@ class FileModule {
                 );
             }
         );
+
+
+        if (this.clearButton) {
+
+            this.clearButton.addEventListener(
+                "click",
+                () => {
+
+                    this.clearModule();
+                }
+            );
+        }
+
+
+        if (this.copyOriginalButton) {
+
+            this.copyOriginalButton.addEventListener(
+                "click",
+                () => {
+
+                    AppUtils.copyText(
+                        this.originalText?.textContent || "",
+                        this.copyOriginalButton,
+                        this.statusId
+                    );
+                }
+            );
+        }
+
+
+        if (this.copyTranslatedButton) {
+
+            this.copyTranslatedButton.addEventListener(
+                "click",
+                () => {
+
+                    AppUtils.copyText(
+                        this.translatedText?.textContent || "",
+                        this.copyTranslatedButton,
+                        this.statusId
+                    );
+                }
+            );
+        }
     }
 
 
@@ -977,6 +1148,7 @@ class FileModule {
         if (!file) {
 
             return {
+
                 valid:
                     false,
 
@@ -999,6 +1171,7 @@ class FileModule {
         ) {
 
             return {
+
                 valid:
                     false,
 
@@ -1014,6 +1187,7 @@ class FileModule {
         ) {
 
             return {
+
                 valid:
                     false,
 
@@ -1035,6 +1209,7 @@ class FileModule {
         ) {
 
             return {
+
                 valid:
                     false,
 
@@ -1045,6 +1220,7 @@ class FileModule {
 
 
         return {
+
             valid:
                 true,
 
@@ -1073,7 +1249,9 @@ class FileModule {
 
             this.resetFileName();
 
+
             this.hidePreview();
+
 
             return;
         }
@@ -1100,7 +1278,9 @@ class FileModule {
 
             this.resetFileName();
 
+
             this.hidePreview();
+
 
             return;
         }
@@ -1156,6 +1336,7 @@ class FileModule {
             !this.preview ||
             !this.previewContainer
         ) {
+
             return;
         }
 
@@ -1196,6 +1377,7 @@ class FileModule {
             !this.preview ||
             !this.previewContainer
         ) {
+
             return;
         }
 
@@ -1226,7 +1408,7 @@ class FileModule {
 
 
     /* =====================================
-       RESTAURAR NOMBRE
+       RESTAURAR NOMBRE DEL ARCHIVO
     ===================================== */
 
     resetFileName() {
@@ -1238,6 +1420,39 @@ class FileModule {
         }
     }
 
+
+    /* =====================================
+       LIMPIAR MÓDULO
+    ===================================== */
+
+    clearModule() {
+
+        if (this.input) {
+
+            this.input.value =
+                "";
+        }
+
+
+        this.resetFileName();
+
+
+        if (
+            typeof this.hideResult ===
+            "function"
+        ) {
+
+            this.hideResult();
+        }
+
+
+        this.hidePreview();
+
+
+        StatusManager.clear(
+            this.statusId
+        );
+    }
 }
 
 
@@ -1323,6 +1538,7 @@ class AudioModule extends FileModule {
                 "Selecciona un archivo de audio antes de continuar."
             );
 
+
             return;
         }
 
@@ -1340,6 +1556,7 @@ class AudioModule extends FileModule {
                 "error",
                 validation.message
             );
+
 
             return;
         }
@@ -1513,6 +1730,7 @@ class AudioModule extends FileModule {
 
                     body:
                         JSON.stringify({
+
                             action:
                                 "speech",
 
@@ -1559,7 +1777,8 @@ class AudioModule extends FileModule {
 
         if (
             !audioBlob ||
-            audioBlob.size === 0
+            audioBlob.size ===
+                0
         ) {
 
             throw new Error(
@@ -1603,6 +1822,7 @@ class AudioModule extends FileModule {
             this.audioPlayer ||
             !this.resultContainer
         ) {
+
             return;
         }
 
@@ -1741,6 +1961,7 @@ class AudioModule extends FileModule {
     setLoading(isLoading) {
 
         if (!this.submitButton) {
+
             return;
         }
 
@@ -1754,7 +1975,6 @@ class AudioModule extends FileModule {
                 ? "Procesando..."
                 : "Traducir audio";
     }
-
 }
 
 
@@ -1832,6 +2052,7 @@ class DocumentModule extends FileModule {
                 "Selecciona un documento antes de continuar."
             );
 
+
             return;
         }
 
@@ -1849,6 +2070,7 @@ class DocumentModule extends FileModule {
                 "error",
                 validation.message
             );
+
 
             return;
         }
@@ -1881,14 +2103,6 @@ class DocumentModule extends FileModule {
                 file.name
             );
 
-
-            /*
-             * No se agrega Content-Type
-             * manualmente.
-             *
-             * El navegador crea el boundary
-             * para multipart/form-data.
-             */
 
             const response =
                 await fetch(
@@ -2015,6 +2229,7 @@ class DocumentModule extends FileModule {
     setLoading(isLoading) {
 
         if (!this.submitButton) {
+
             return;
         }
 
@@ -2028,7 +2243,6 @@ class DocumentModule extends FileModule {
                 ? "Procesando..."
                 : "Traducir documento";
     }
-
 }
 
 
@@ -2106,6 +2320,7 @@ class ImageModule extends FileModule {
                 "Selecciona una imagen antes de continuar."
             );
 
+
             return;
         }
 
@@ -2123,6 +2338,7 @@ class ImageModule extends FileModule {
                 "error",
                 validation.message
             );
+
 
             return;
         }
@@ -2328,6 +2544,7 @@ class ImageModule extends FileModule {
     setLoading(isLoading) {
 
         if (!this.submitButton) {
+
             return;
         }
 
@@ -2341,7 +2558,6 @@ class ImageModule extends FileModule {
                 ? "Traduciendo..."
                 : "Traducir imagen";
     }
-
 }
 
 
@@ -2356,11 +2572,14 @@ class TranslatorApp {
         this.chat =
             null;
 
+
         this.audio =
             null;
 
+
         this.documents =
             null;
+
 
         this.images =
             null;
@@ -2369,17 +2588,17 @@ class TranslatorApp {
 
     init() {
 
-        /* ===============================
+        /* =================================
            CHAT
-        =============================== */
+        ================================= */
 
         this.chat =
             new ChatModule();
 
 
-        /* ===============================
+        /* =================================
            AUDIO
-        =============================== */
+        ================================= */
 
         this.audio =
             new AudioModule({
@@ -2418,14 +2637,23 @@ class TranslatorApp {
                 translatedTextId:
                     "audioTranslatedText",
 
+                clearButtonId:
+                    "clearAudioButton",
+
+                copyOriginalButtonId:
+                    "copyAudioOriginalButton",
+
+                copyTranslatedButtonId:
+                    "copyAudioTranslationButton",
+
                 apiUrl:
                     AUDIO_API_URL
             });
 
 
-        /* ===============================
+        /* =================================
            DOCUMENTOS
-        =============================== */
+        ================================= */
 
         this.documents =
             new DocumentModule({
@@ -2463,14 +2691,23 @@ class TranslatorApp {
                 translatedTextId:
                     "documentTranslatedText",
 
+                clearButtonId:
+                    "clearDocumentButton",
+
+                copyOriginalButtonId:
+                    "copyDocumentOriginalButton",
+
+                copyTranslatedButtonId:
+                    "copyDocumentTranslationButton",
+
                 apiUrl:
                     DOCUMENT_API_URL
             });
 
 
-        /* ===============================
+        /* =================================
            IMÁGENES
-        =============================== */
+        ================================= */
 
         this.images =
             new ImageModule({
@@ -2515,11 +2752,19 @@ class TranslatorApp {
                 translatedTextId:
                     "imageTranslatedText",
 
+                clearButtonId:
+                    "clearImageButton",
+
+                copyOriginalButtonId:
+                    "copyImageOriginalButton",
+
+                copyTranslatedButtonId:
+                    "copyImageTranslationButton",
+
                 apiUrl:
                     IMAGE_API_URL
             });
     }
-
 }
 
 
