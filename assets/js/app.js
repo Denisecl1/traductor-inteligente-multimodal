@@ -1,5 +1,6 @@
 "use strict";
 
+const API_URL = "https://traductor-inteligente-multimodal.vercel.app/api/chat";
 
 /* =========================================
    ADMINISTRADOR DE MENSAJES DE ESTADO
@@ -65,6 +66,15 @@ class ChatModule {
         this.characterCounter =
             document.getElementById("characterCounter");
 
+        this.participantSelect =
+            document.getElementById("participantSelect");
+
+        this.messages =
+            document.getElementById("chatMessages");
+
+        this.sendButton =
+            document.getElementById("sendMessageButton");
+
         this.maxCharacters = 1000;
 
         this.init();
@@ -73,14 +83,20 @@ class ChatModule {
 
     init() {
 
-        if (!this.form || !this.messageInput) {
+        if (
+            !this.form ||
+            !this.messageInput ||
+            !this.messages
+        ) {
             return;
         }
+
 
         this.messageInput.addEventListener(
             "input",
             () => this.updateCharacterCounter()
         );
+
 
         this.form.addEventListener(
             "submit",
@@ -101,12 +117,14 @@ class ChatModule {
     }
 
 
-    handleSubmit(event) {
+    async handleSubmit(event) {
 
         event.preventDefault();
 
+
         const message =
             this.messageInput.value.trim();
+
 
         if (!message) {
 
@@ -134,22 +152,323 @@ class ChatModule {
         }
 
 
+        const participant =
+            this.participantSelect.value;
+
+
+        try {
+
+            this.setLoading(true);
+
+            StatusManager.show(
+                "chatStatus",
+                "loading",
+                "Traduciendo mensaje..."
+            );
+
+
+            const response = await fetch(
+                API_URL,
+                {
+                    method: "POST",
+
+                    headers: {
+                        "Content-Type":
+                            "application/json"
+                    },
+
+                    body: JSON.stringify({
+                        message: message
+                    })
+                }
+            );
+
+
+            let data = {};
+
+
+            try {
+
+                data = await response.json();
+
+            } catch {
+
+                throw new Error(
+                    "El servidor devolvió una respuesta no válida."
+                );
+
+            }
+
+
+            if (!response.ok) {
+
+                throw new Error(
+                    data.error ||
+                    "No fue posible realizar la traducción."
+                );
+
+            }
+
+
+            this.addMessage(
+                participant,
+                data.original,
+                data.translation,
+                data.source_language,
+                data.target_language
+            );
+
+
+            this.messageInput.value = "";
+
+            this.updateCharacterCounter();
+
+
+            StatusManager.show(
+                "chatStatus",
+                "success",
+                "Mensaje traducido correctamente."
+            );
+
+
+            this.messageInput.focus();
+
+        } catch (error) {
+
+            console.error(
+                "Error al traducir:",
+                error
+            );
+
+
+            StatusManager.show(
+                "chatStatus",
+                "error",
+                error.message ||
+                "No fue posible conectar con el servicio de traducción."
+            );
+
+        } finally {
+
+            this.setLoading(false);
+
+        }
+
+    }
+
+
+    addMessage(
+        participant,
+        originalText,
+        translatedText,
+        sourceLanguage,
+        targetLanguage
+    ) {
+
         /*
-         * Por ahora solamente validamos el mensaje.
-         * La comunicación con Vercel y OpenAI
-         * se agregará posteriormente.
+         * Elimina el mensaje inicial:
+         * "La conversación aparecerá aquí."
          */
 
-        StatusManager.show(
-            "chatStatus",
-            "success",
-            "Mensaje válido y listo para traducir."
+        const placeholder =
+            this.messages.querySelector(
+                ".text-center.text-secondary"
+            );
+
+
+        if (placeholder) {
+            placeholder.remove();
+        }
+
+
+        /*
+         * Contenedor principal del mensaje
+         */
+
+        const messageContainer =
+            document.createElement("div");
+
+
+        messageContainer.classList.add(
+            "chat-message"
         );
+
+
+        if (participant === "participant1") {
+
+            messageContainer.classList.add(
+                "participant-1"
+            );
+
+        } else {
+
+            messageContainer.classList.add(
+                "participant-2"
+            );
+
+        }
+
+
+        /*
+         * Nombre del participante
+         */
+
+        const participantElement =
+            document.createElement("div");
+
+
+        participantElement.classList.add(
+            "message-participant"
+        );
+
+
+        participantElement.textContent =
+            participant === "participant1"
+                ? "Participante 1"
+                : "Participante 2";
+
+
+        /*
+         * Texto original
+         */
+
+        const originalElement =
+            document.createElement("div");
+
+
+        originalElement.classList.add(
+            "message-original"
+        );
+
+
+        const originalLabel =
+            document.createElement("strong");
+
+
+        originalLabel.textContent =
+            `Original (${this.getLanguageName(sourceLanguage)}):`;
+
+
+        originalElement.appendChild(
+            originalLabel
+        );
+
+
+        originalElement.appendChild(
+            document.createElement("br")
+        );
+
+
+        originalElement.appendChild(
+            document.createTextNode(
+                originalText
+            )
+        );
+
+
+        /*
+         * Traducción
+         */
+
+        const translationElement =
+            document.createElement("div");
+
+
+        translationElement.classList.add(
+            "message-translation"
+        );
+
+
+        const translationLabel =
+            document.createElement("strong");
+
+
+        translationLabel.textContent =
+            `Traducción (${this.getLanguageName(targetLanguage)}):`;
+
+
+        translationElement.appendChild(
+            translationLabel
+        );
+
+
+        translationElement.appendChild(
+            document.createElement("br")
+        );
+
+
+        translationElement.appendChild(
+            document.createTextNode(
+                translatedText
+            )
+        );
+
+
+        /*
+         * Construir mensaje
+         */
+
+        messageContainer.appendChild(
+            participantElement
+        );
+
+        messageContainer.appendChild(
+            originalElement
+        );
+
+        messageContainer.appendChild(
+            translationElement
+        );
+
+
+        this.messages.appendChild(
+            messageContainer
+        );
+
+
+        /*
+         * Llevar scroll al mensaje más reciente
+         */
+
+        this.messages.scrollTop =
+            this.messages.scrollHeight;
+
+    }
+
+
+    getLanguageName(language) {
+
+        const languages = {
+            es: "Español",
+            en: "Inglés"
+        };
+
+
+        return languages[language]
+            || language;
+
+    }
+
+
+    setLoading(isLoading) {
+
+        if (!this.sendButton) {
+            return;
+        }
+
+
+        this.sendButton.disabled =
+            isLoading;
+
+
+        this.sendButton.textContent =
+            isLoading
+                ? "Traduciendo..."
+                : "Traducir y enviar";
 
     }
 
 }
-
 
 /* =========================================
    CLASE PARA MANEJO DE ARCHIVOS
