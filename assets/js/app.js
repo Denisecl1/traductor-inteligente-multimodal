@@ -8,9 +8,11 @@
 const CHAT_API_URL =
     "https://traductor-inteligente-multimodal.vercel.app/api/chat";
 
+const AUDIO_API_URL =
+    "https://traductor-inteligente-multimodal.vercel.app/api/audio";
+
 const IMAGE_API_URL =
     "https://traductor-inteligente-multimodal.vercel.app/api/images";
-
 
 /* =========================================
    ADMINISTRADOR DE MENSAJES DE ESTADO
@@ -1204,6 +1206,725 @@ class FileModule {
 
 }
 
+/* =========================================
+   MÓDULO ESPECÍFICO DE AUDIO
+========================================= */
+
+class AudioModule extends FileModule {
+
+    constructor(config) {
+
+        super(config);
+
+
+        this.apiUrl =
+            config.apiUrl;
+
+
+        this.submitButton =
+            document.getElementById(
+                config.submitButtonId
+            );
+
+
+        this.resultContainer =
+            document.getElementById(
+                config.resultContainerId
+            );
+
+
+        this.originalText =
+            document.getElementById(
+                config.originalTextId
+            );
+
+
+        this.translatedText =
+            document.getElementById(
+                config.translatedTextId
+            );
+
+
+        this.audioPlayer =
+            null;
+
+
+        this.speechUrl =
+            null;
+
+    }
+
+
+    /* =====================================
+       SELECCIONAR NUEVO AUDIO
+    ===================================== */
+
+    handleFileSelection() {
+
+        /*
+         * Ocultar el resultado anterior
+         * cuando se selecciona otro archivo.
+         */
+
+        this.hideResult();
+
+
+        /*
+         * Ejecutar las validaciones
+         * de FileModule.
+         */
+
+        super.handleFileSelection();
+
+    }
+
+
+    /* =====================================
+       PROCESAR AUDIO
+    ===================================== */
+
+    async handleSubmit(event) {
+
+        event.preventDefault();
+
+
+        const file =
+            this.input.files[0];
+
+
+        /* ---------------------------------
+           ARCHIVO NO SELECCIONADO
+        --------------------------------- */
+
+        if (!file) {
+
+            StatusManager.show(
+                this.statusId,
+                "warning",
+                "Selecciona un archivo de audio antes de continuar."
+            );
+
+            return;
+
+        }
+
+
+        /* ---------------------------------
+           VALIDAR ARCHIVO
+        --------------------------------- */
+
+        const validation =
+            this.validateFile(
+                file
+            );
+
+
+        if (!validation.valid) {
+
+            StatusManager.show(
+                this.statusId,
+                "error",
+                validation.message
+            );
+
+            return;
+
+        }
+
+
+        try {
+
+            /*
+             * Limpiar resultados anteriores.
+             */
+
+            this.hideResult();
+
+
+            /*
+             * Bloquear botón.
+             */
+
+            this.setLoading(true);
+
+
+            /*
+             * Mostrar estado.
+             */
+
+            StatusManager.show(
+                this.statusId,
+                "loading",
+                "Procesando, transcribiendo y traduciendo el audio..."
+            );
+
+
+            /* ---------------------------------
+               CREAR FORMDATA
+            --------------------------------- */
+
+            const formData =
+                new FormData();
+
+
+            formData.append(
+                "audio",
+                file,
+                file.name
+            );
+
+
+            /*
+             * IMPORTANTE:
+             *
+             * No agregamos manualmente
+             * Content-Type.
+             *
+             * El navegador genera automáticamente
+             * multipart/form-data con su boundary.
+             */
+
+            const response =
+                await fetch(
+                    this.apiUrl,
+                    {
+                        method:
+                            "POST",
+
+                        body:
+                            formData
+                    }
+                );
+
+
+            /* ---------------------------------
+               LEER RESPUESTA JSON
+            --------------------------------- */
+
+            let data = {};
+
+
+            try {
+
+                data =
+                    await response.json();
+
+            } catch {
+
+                throw new Error(
+                    "El servidor devolvió una respuesta no válida."
+                );
+
+            }
+
+
+            /* ---------------------------------
+               ERROR DEL BACKEND
+            --------------------------------- */
+
+            if (!response.ok) {
+
+                throw new Error(
+                    data.error ||
+                    "No fue posible procesar el audio."
+                );
+
+            }
+
+
+            /* ---------------------------------
+               MOSTRAR TRANSCRIPCIÓN
+            --------------------------------- */
+
+            if (this.originalText) {
+
+                this.originalText.textContent =
+                    data.transcription;
+
+            }
+
+
+            /* ---------------------------------
+               MOSTRAR TRADUCCIÓN
+            --------------------------------- */
+
+            if (this.translatedText) {
+
+                this.translatedText.textContent =
+                    data.translation;
+
+            }
+
+
+            /* ---------------------------------
+               MOSTRAR RESULTADO
+            --------------------------------- */
+
+            if (this.resultContainer) {
+
+                this.resultContainer
+                    .classList
+                    .remove(
+                        "d-none"
+                    );
+
+            }
+
+
+            /* =================================
+               GENERAR TRADUCCIÓN HABLADA
+            ================================= */
+
+            StatusManager.show(
+                this.statusId,
+                "loading",
+                "Generando la traducción hablada..."
+            );
+
+
+            try {
+
+                await this.generateSpeech(
+                    data.translation,
+                    data.target_language
+                );
+
+
+                StatusManager.show(
+                    this.statusId,
+                    "success",
+                    `Audio traducido correctamente: ${this.getLanguageName(data.source_language)} → ${this.getLanguageName(data.target_language)}.`
+                );
+
+            } catch (speechError) {
+
+                /*
+                 * Si falla solamente TTS,
+                 * mantenemos visibles la
+                 * transcripción y traducción.
+                 */
+
+                console.error(
+                    "Error generando voz:",
+                    speechError
+                );
+
+
+                StatusManager.show(
+                    this.statusId,
+                    "warning",
+                    "La transcripción y traducción se completaron, pero no fue posible generar la voz traducida."
+                );
+
+            }
+
+        } catch (error) {
+
+            console.error(
+                "Error procesando audio:",
+                error
+            );
+
+
+            this.hideResult();
+
+
+            StatusManager.show(
+                this.statusId,
+                "error",
+                error.message ||
+                "No fue posible conectar con el servicio de audio."
+            );
+
+        } finally {
+
+            this.setLoading(false);
+
+        }
+
+    }
+
+
+    /* =====================================
+       GENERAR VOZ TRADUCIDA
+    ===================================== */
+
+    async generateSpeech(
+        text,
+        targetLanguage
+    ) {
+
+        const response =
+            await fetch(
+                this.apiUrl,
+                {
+                    method:
+                        "POST",
+
+                    headers: {
+                        "Content-Type":
+                            "application/json"
+                    },
+
+                    body:
+                        JSON.stringify({
+
+                            action:
+                                "speech",
+
+                            text:
+                                text,
+
+                            target_language:
+                                targetLanguage
+                        })
+                }
+            );
+
+
+        /*
+         * Si hubo error, el backend
+         * responderá JSON.
+         */
+
+        if (!response.ok) {
+
+            const message =
+                await this.readErrorResponse(
+                    response
+                );
+
+
+            throw new Error(
+                message
+            );
+
+        }
+
+
+        /*
+         * Si funcionó, la respuesta
+         * será audio/mpeg.
+         */
+
+        const audioBlob =
+            await response.blob();
+
+
+        if (
+            !audioBlob ||
+            audioBlob.size === 0
+        ) {
+
+            throw new Error(
+                "El audio traducido recibido está vacío."
+            );
+
+        }
+
+
+        /*
+         * Crear reproductor si aún
+         * no existe.
+         */
+
+        this.ensureAudioPlayer();
+
+
+        /*
+         * Liberar URL anterior.
+         */
+
+        if (this.speechUrl) {
+
+            URL.revokeObjectURL(
+                this.speechUrl
+            );
+
+        }
+
+
+        /*
+         * Crear URL temporal del MP3.
+         */
+
+        this.speechUrl =
+            URL.createObjectURL(
+                audioBlob
+            );
+
+
+        /*
+         * Asignar audio al reproductor.
+         */
+
+        this.audioPlayer.src =
+            this.speechUrl;
+
+
+        this.audioPlayer.load();
+
+    }
+
+
+    /* =====================================
+       LEER ERROR DEL BACKEND
+    ===================================== */
+
+    async readErrorResponse(
+        response
+    ) {
+
+        try {
+
+            const data =
+                await response.json();
+
+
+            return (
+                data.error ||
+                "No fue posible generar la voz traducida."
+            );
+
+        } catch {
+
+            return (
+                "No fue posible generar la voz traducida."
+            );
+
+        }
+
+    }
+
+
+    /* =====================================
+       CREAR REPRODUCTOR
+    ===================================== */
+
+    ensureAudioPlayer() {
+
+        /*
+         * Si ya existe, no crear otro.
+         */
+
+        if (this.audioPlayer) {
+
+            return;
+
+        }
+
+
+        if (!this.resultContainer) {
+
+            return;
+
+        }
+
+
+        /*
+         * Contenedor del reproductor.
+         */
+
+        const playerContainer =
+            document.createElement(
+                "div"
+            );
+
+
+        playerContainer.id =
+            "audioPlaybackContainer";
+
+
+        playerContainer.className =
+            "mt-3 border rounded p-3";
+
+
+        /*
+         * Título.
+         */
+
+        const title =
+            document.createElement(
+                "h4"
+            );
+
+
+        title.className =
+            "h6 fw-bold";
+
+
+        title.textContent =
+            "Traducción hablada";
+
+
+        /*
+         * Reproductor.
+         */
+
+        const audio =
+            document.createElement(
+                "audio"
+            );
+
+
+        audio.id =
+            "translatedAudioPlayer";
+
+
+        audio.controls =
+            true;
+
+
+        audio.preload =
+            "metadata";
+
+
+        audio.className =
+            "w-100";
+
+
+        /*
+         * Construir sección.
+         */
+
+        playerContainer.appendChild(
+            title
+        );
+
+
+        playerContainer.appendChild(
+            audio
+        );
+
+
+        this.resultContainer.appendChild(
+            playerContainer
+        );
+
+
+        this.audioPlayer =
+            audio;
+
+    }
+
+
+    /* =====================================
+       OCULTAR RESULTADO
+    ===================================== */
+
+    hideResult() {
+
+        if (this.resultContainer) {
+
+            this.resultContainer
+                .classList
+                .add(
+                    "d-none"
+                );
+
+        }
+
+
+        if (this.originalText) {
+
+            this.originalText.textContent =
+                "";
+
+        }
+
+
+        if (this.translatedText) {
+
+            this.translatedText.textContent =
+                "";
+
+        }
+
+
+        /*
+         * Liberar archivo de audio
+         * generado anteriormente.
+         */
+
+        if (this.speechUrl) {
+
+            URL.revokeObjectURL(
+                this.speechUrl
+            );
+
+
+            this.speechUrl =
+                null;
+
+        }
+
+
+        if (this.audioPlayer) {
+
+            this.audioPlayer.pause();
+
+
+            this.audioPlayer.removeAttribute(
+                "src"
+            );
+
+
+            this.audioPlayer.load();
+
+        }
+
+    }
+
+
+    /* =====================================
+       ESTADO DEL BOTÓN
+    ===================================== */
+
+    setLoading(isLoading) {
+
+        if (!this.submitButton) {
+
+            return;
+
+        }
+
+
+        this.submitButton.disabled =
+            isLoading;
+
+
+        this.submitButton.textContent =
+            isLoading
+                ? "Procesando..."
+                : "Traducir audio";
+
+    }
+
+
+    /* =====================================
+       NOMBRE DEL IDIOMA
+    ===================================== */
+
+    getLanguageName(language) {
+
+        const languages = {
+
+            es:
+                "Español",
+
+            en:
+                "Inglés"
+        };
+
+
+        return (
+            languages[language] ||
+            language
+        );
+
+    }
+
+}
 
 /* =========================================
    MÓDULO ESPECÍFICO DE IMÁGENES
@@ -1606,30 +2327,45 @@ class TranslatorApp {
         ================================= */
 
         this.audio =
-            new FileModule({
+    new AudioModule({
 
-                formId:
-                    "audioForm",
+        formId:
+            "audioForm",
 
-                inputId:
-                    "audioInput",
+        inputId:
+            "audioInput",
 
-                fileNameId:
-                    "audioFileName",
+        fileNameId:
+            "audioFileName",
 
-                statusId:
-                    "audioStatus",
+        statusId:
+            "audioStatus",
 
-                allowedExtensions: [
-                    "mp3",
-                    "wav",
-                    "m4a",
-                    "webm"
-                ],
+        allowedExtensions: [
+            "mp3",
+            "wav",
+            "m4a",
+            "webm"
+        ],
 
-                maxSizeMB:
-                    4
-            });
+        maxSizeMB:
+            4,
+
+        submitButtonId:
+            "translateAudioButton",
+
+        resultContainerId:
+            "audioResult",
+
+        originalTextId:
+            "audioOriginalText",
+
+        translatedTextId:
+            "audioTranslatedText",
+
+        apiUrl:
+            AUDIO_API_URL
+    });
 
 
         /* =================================
