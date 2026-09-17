@@ -1,0 +1,784 @@
+/* =========================================
+   VARIABLES GENERALES
+========================================= */
+
+:root {
+    --primary-color: #5b5bd6;
+    --primary-dark: #4141b8;
+    --secondary-color: #7c3aed;
+
+    --background-color: #f5f7fb;
+    --card-background: #ffffff;
+
+    --text-color: #1f2937;
+    --text-muted: #6b7280;
+
+    --border-color: #e5e7eb;
+
+    --success-color: #198754;
+    --warning-color: #f59e0b;
+    --danger-color: #dc3545;
+
+    --shadow-sm: 0 4px 16px rgba(0, 0, 0, 0.06);
+    --shadow-md: 0 10px 30px rgba(0, 0, 0, 0.10);
+
+    --border-radius: 16px;
+}
+
+
+/* =========================================
+   ESTILOS GENERALES
+========================================= */
+
+* {
+    box-sizing: border-box;
+}
+
+html {
+    scroll-behavior: smooth;
+}
+
+body {
+    margin: 0;
+    min-height: 100vh;
+
+    font-family:
+        "Segoe UI",
+        Tahoma,
+        Geneva,
+        Verdana,
+        sans-serif;
+
+    background-color: var(--background-color);
+    color: var(--text-color);
+}
+
+main {
+    min-height: 60vh;
+}
+
+
+/* =========================================
+   NAVBAR
+========================================= */
+
+.navbar {
+    background: linear-gradient(
+        135deg,
+        #1f2937,
+        #111827
+    ) !important;
+
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.10);
+}
+
+.navbar-brand {
+    letter-spacing: 0.3px;
+}
+
+.navbar .nav-link {
+    color: rgba(255, 255, 255, 0.80);
+    font-weight: 500;
+
+    transition:
+        color 0.25s ease,
+        transform 0.25s ease;
+}
+
+.navbar .nav-link:hover {
+    color: #ffffff;
+    transform: translateY(-1px);
+}
+
+.navbar .nav-link.active {
+    color: #ffffff;
+}
+
+
+/* =========================================
+   ENCABEZADO
+========================================= */
+
+header {
+    background:
+        linear-gradient(
+            135deg,
+            rgba(91, 91, 214, 0.12),
+            rgba(124, 58, 237, 0.08)
+        );
+
+    border-bottom: 1px solid var(--border-color);
+}
+
+header h1 {
+    color: var(--text-color);
+}
+
+header .lead {
+    color: var(--primary-color);
+    font-weight: 600;
+}
+
+header p.text-secondary {
+    max-width: 700px;
+}
+
+
+/* =========================================
+   TARJETAS
+========================================= */
+
+.card {
+    border-radius: var(--border-radius);
+    background-color: var(--card-background);
+}
+
+.shadow-sm {
+    box-shadow: var(--shadow-sm) !important;
+}
+
+.card-body {
+    border-radius: var(--border-radius);
+}
+
+
+/* =========================================
+   NAVEGACIÓN DE MODALIDADES
+========================================= */
+
+#translatorTabs {
+    flex-wrap: wrap;
+}
+
+#translatorTabs .nav-link {
+    border-radius: 12px;
+
+    color: var(--text-muted);
+    font-weight: 600;
+
+    padding: 12px 18px;
+
+    transition:
+        background-color 0.25s ease,
+        color 0.25s ease,
+        transform 0.25s ease,
+        box-shadow 0.25s ease;
+}
+
+#translatorTabs .nav-link:hover {
+    background-color: #f0f0ff;
+    color: var(--primary-color);
+
+    transform: translateY(-2px);
+}
+
+#translatorTabs .nav-link.active {
+    background: linear-gradient(
+        135deg,
+        var(--primary-color),
+        var(--secondary-color)
+    );
+
+    color: #ffffff;
+
+    box-shadow:
+        0 6px 16px
+        rgba(91, 91, 214, 0.24);
+}
+
+
+/* =========================================
+   TÍTULOS Y TEXTOS
+========================================= */
+
+h2,
+h3,
+h4 {
+    color: var(--text-color);
+}
+
+.text-secondary {
+    color: var(--text-muted) !important;
+}
+
+
+/* =========================================
+   FORMULARIOS
+========================================= */
+
+.form-label {
+    color: var(--text-color);
+}
+
+.form-control,
+.form-select {
+    border-radius: 12px;
+
+    border: 1px solid var(--border-color);
+
+    padding: 11px 14px;
+
+    transition:
+        border-color 0.25s ease,
+        box-shadow 0.25s ease;
+}
+
+.form-control:focus,
+.form-select:focus {
+    border-color: var(--primary-color);
+
+    box-shadow:
+        0 0 0 0.20rem
+        rgba(91, 91, 214, 0.15);
+}
+
+textarea.form-control {
+    resize: vertical;
+    min-height: 100px;
+}
+
+.form-text {
+    color: var(--text-muted);
+}
+
+
+/* =========================================
+   BOTONES
+========================================= */
+
+.btn {
+    border-radius: 12px;
+
+    font-weight: 600;
+
+    transition:
+        transform 0.25s ease,
+        box-shadow 0.25s ease;
+}
+
+.btn-primary {
+    background: linear-gradient(
+        135deg,
+        var(--primary-color),
+        var(--secondary-color)
+    );
+
+    border: none;
+}
+
+.btn-primary:hover {
+    background: linear-gradient(
+        135deg,
+        var(--primary-dark),
+        #6d28d9
+    );
+
+    transform: translateY(-2px);
+
+    box-shadow:
+        0 6px 16px
+        rgba(91, 91, 214, 0.24);
+}
+
+.btn-primary:active {
+    transform: translateY(0);
+}
+
+
+/* =========================================
+   CHAT
+========================================= */
+
+.chat-messages {
+    min-height: 320px;
+    max-height: 500px;
+
+    overflow-y: auto;
+
+    background-color: #f9fafb;
+
+    border-color: var(--border-color) !important;
+
+    scrollbar-width: thin;
+}
+
+.chat-messages::-webkit-scrollbar {
+    width: 7px;
+}
+
+.chat-messages::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.chat-messages::-webkit-scrollbar-thumb {
+    background-color: #cbd5e1;
+    border-radius: 10px;
+}
+
+
+/* Mensajes preparados para después */
+
+.chat-message {
+    max-width: 80%;
+
+    padding: 12px 14px;
+
+    border-radius: 14px;
+
+    margin-bottom: 14px;
+
+    box-shadow: var(--shadow-sm);
+}
+
+.chat-message.participant-1 {
+    margin-right: auto;
+
+    background-color: #eef2ff;
+}
+
+.chat-message.participant-2 {
+    margin-left: auto;
+
+    background-color: #f3e8ff;
+}
+
+.chat-message .message-participant {
+    font-size: 0.85rem;
+    font-weight: 700;
+
+    margin-bottom: 6px;
+}
+
+.chat-message .message-original {
+    margin-bottom: 8px;
+}
+
+.chat-message .message-translation {
+    color: var(--text-muted);
+
+    font-size: 0.95rem;
+
+    border-top: 1px solid var(--border-color);
+
+    padding-top: 8px;
+}
+
+
+/* =========================================
+   CONTADOR DE CARACTERES
+========================================= */
+
+#characterCounter {
+    color: var(--primary-color);
+    font-weight: 600;
+}
+
+
+/* =========================================
+   CONTENEDORES DE RESULTADO
+========================================= */
+
+.result-container {
+    animation: fadeIn 0.35s ease;
+}
+
+.result-container .border {
+    border-color: var(--border-color) !important;
+
+    background-color: #fafafa;
+
+    border-radius: 14px !important;
+}
+
+
+/* =========================================
+   PREVISUALIZACIÓN DE IMAGEN
+========================================= */
+
+#imagePreviewContainer {
+    background-color: #f9fafb;
+
+    border: 1px dashed var(--border-color);
+
+    border-radius: 14px;
+
+    padding: 18px;
+}
+
+#imagePreview {
+    max-height: 380px;
+
+    object-fit: contain;
+
+    box-shadow: var(--shadow-sm);
+}
+
+
+/* =========================================
+   AVISO DE PRIVACIDAD
+========================================= */
+
+#privacidad .alert {
+    border: none;
+
+    border-left: 5px solid var(--warning-color);
+
+    border-radius: 14px;
+
+    background-color: #fff8e6;
+
+    color: #664d03;
+
+    box-shadow: var(--shadow-sm);
+}
+
+
+/* =========================================
+   MENSAJES DE ESTADO
+========================================= */
+
+.status-message {
+    border-radius: 12px;
+
+    padding: 12px 14px;
+
+    font-size: 0.95rem;
+
+    animation: fadeIn 0.25s ease;
+}
+
+.status-success {
+    background-color: #e8f7ee;
+    color: #146c43;
+
+    border-left:
+        4px solid
+        var(--success-color);
+}
+
+.status-warning {
+    background-color: #fff7df;
+    color: #7a5b00;
+
+    border-left:
+        4px solid
+        var(--warning-color);
+}
+
+.status-error {
+    background-color: #fdecec;
+    color: #842029;
+
+    border-left:
+        4px solid
+        var(--danger-color);
+}
+
+.status-loading {
+    background-color: #eef2ff;
+    color: #3730a3;
+
+    border-left:
+        4px solid
+        var(--primary-color);
+}
+
+
+/* =========================================
+   FOOTER
+========================================= */
+
+footer {
+    background: linear-gradient(
+        135deg,
+        #111827,
+        #1f2937
+    ) !important;
+
+    margin-top: 50px;
+}
+
+footer p {
+    color: rgba(255, 255, 255, 0.85);
+}
+
+footer p:first-child {
+    color: #ffffff;
+}
+
+
+/* =========================================
+   ANIMACIONES
+========================================= */
+
+@keyframes fadeIn {
+
+    from {
+        opacity: 0;
+        transform: translateY(6px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+
+/* =========================================
+   TABLET
+========================================= */
+
+@media (max-width: 991.98px) {
+
+    header {
+        padding-top: 3rem !important;
+        padding-bottom: 3rem !important;
+    }
+
+    .chat-messages {
+        min-height: 280px;
+    }
+
+}
+
+
+/* =========================================
+   TELÉFONO
+========================================= */
+
+@media (max-width: 767.98px) {
+
+    header {
+        padding-top: 2.5rem !important;
+        padding-bottom: 2.5rem !important;
+    }
+
+    header h1 {
+        font-size: 2rem;
+    }
+
+    header .lead {
+        font-size: 1.1rem;
+    }
+
+    main {
+        padding-left: 14px;
+        padding-right: 14px;
+    }
+
+    .card-body {
+        padding: 1.25rem !important;
+    }
+
+    #translatorTabs {
+        display: grid;
+
+        grid-template-columns:
+            repeat(2, 1fr);
+
+        gap: 8px !important;
+    }
+
+    #translatorTabs .nav-item {
+        width: 100%;
+    }
+
+    #translatorTabs .nav-link {
+        width: 100%;
+        padding: 11px 8px;
+    }
+
+    .chat-messages {
+        min-height: 250px;
+        max-height: 420px;
+    }
+
+    .chat-message {
+        max-width: 92%;
+    }
+
+}
+
+
+/* =========================================
+   TELÉFONOS PEQUEÑOS
+========================================= */
+
+@media (max-width: 420px) {
+
+    header h1 {
+        font-size: 1.75rem;
+    }
+
+    #translatorTabs {
+        grid-template-columns: 1fr;
+    }
+
+    .btn {
+        width: 100%;
+    }
+
+}
+
+/* =========================================
+   BOTÓN PERSONALIZADO - TRADUCIR
+========================================= */
+
+.btn-translate {
+    --btn-bg-1: hsla(194, 100%, 69%, 1);
+    --btn-bg-2: hsla(217, 100%, 56%, 1);
+    --btn-bg-color: hsla(360, 100%, 100%, 1);
+    --radii: 0.5em;
+
+    cursor: pointer;
+
+    padding: 0.9em 1.4em;
+
+    min-width: 150px;
+    min-height: 44px;
+
+    font-size: 1rem;
+    font-weight: 600;
+
+    transition: 0.8s;
+
+    background-size: 280% auto;
+
+    background-image: linear-gradient(
+        325deg,
+        var(--btn-bg-2) 0%,
+        var(--btn-bg-1) 55%,
+        var(--btn-bg-2) 90%
+    );
+
+    border: none;
+    border-radius: var(--radii);
+
+    color: var(--btn-bg-color);
+
+    box-shadow:
+        0 0 20px rgba(71, 184, 255, 0.5),
+        0 5px 5px -1px rgba(58, 125, 233, 0.25),
+        inset 4px 4px 8px rgba(175, 230, 255, 0.5),
+        inset -4px -4px 8px rgba(19, 95, 216, 0.35);
+}
+
+.btn-translate:hover {
+    background-position: right top;
+    transform: translateY(-2px);
+}
+
+.btn-translate:focus,
+.btn-translate:focus-visible,
+.btn-translate:active {
+    outline: none;
+
+    box-shadow:
+        0 0 0 3px #ffffff,
+        0 0 0 6px var(--btn-bg-2),
+        0 0 20px rgba(71, 184, 255, 0.5),
+        0 5px 5px -1px rgba(58, 125, 233, 0.25),
+        inset 4px 4px 8px rgba(175, 230, 255, 0.5),
+        inset -4px -4px 8px rgba(19, 95, 216, 0.35);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .btn-translate {
+        transition: linear;
+    }
+}
+
+/* =========================================
+   BOTÓN PERSONALIZADO - ELEGIR ARCHIVO
+========================================= */
+
+.file-upload-container {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 14px;
+}
+
+
+/* Ocultar input original sin eliminarlo */
+.file-input {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    opacity: 0;
+    overflow: hidden;
+}
+
+
+/* Botón personalizado */
+.btn-file {
+    background-color: white;
+    color: black;
+
+    border-radius: 10em;
+
+    font-size: 17px;
+    font-weight: 600;
+
+    padding: 0.8em 1.6em;
+
+    cursor: pointer;
+
+    transition: all 0.3s ease-in-out;
+
+    border: 1px solid black;
+
+    box-shadow: 0 0 0 0 black;
+
+    display: inline-block;
+}
+
+
+/* Hover */
+.btn-file:hover {
+    transform: translateY(-4px) translateX(-2px);
+
+    box-shadow: 2px 5px 0 0 black;
+}
+
+
+/* Al presionar */
+.btn-file:active {
+    transform: translateY(2px) translateX(1px);
+
+    box-shadow: 0 0 0 0 black;
+}
+
+
+/* Accesibilidad al navegar con teclado */
+.file-input:focus-visible + .btn-file {
+    outline: 3px solid var(--primary-color);
+    outline-offset: 3px;
+}
+
+
+/* Nombre del archivo seleccionado */
+.file-name {
+    color: var(--text-muted);
+
+    font-size: 0.9rem;
+
+    word-break: break-word;
+}
+
+
+/* Responsive */
+@media (max-width: 575.98px) {
+
+    .file-upload-container {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .btn-file {
+        width: 100%;
+        text-align: center;
+    }
+
+}

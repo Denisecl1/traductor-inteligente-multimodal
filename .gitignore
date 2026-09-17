@@ -1,0 +1,21 @@
+# Variables de entorno
+.env
+.env.*
+
+# Entorno virtual de Python
+.venv/
+venv/
+
+# Archivos temporales de Python
+__pycache__/
+*.pyc
+
+# Archivos locales de Vercel
+.vercel/
+
+# Archivos del sistema operativo
+.DS_Store
+Thumbs.db
+
+# Configuración local de Visual Studio Code
+.vscode/
