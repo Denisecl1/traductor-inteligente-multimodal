@@ -1,3 +1,4 @@
+import base64
 import json
 import os
 import re
@@ -10,14 +11,23 @@ from openai import OpenAI
 # CONFIGURACIÓN
 # =========================================
 
-MODEL = os.getenv(
-    "OPENAI_MODEL",
+VISION_MODEL = os.getenv(
+    "OPENAI_VISION_MODEL",
+    "gpt-5.6-sol"
+)
+
+TRANSLATION_MODEL = os.getenv(
+    "OPENAI_TRANSLATION_MODEL",
     "gpt-5.6-luna"
 )
 
-# El frontend limita la imagen original a 3 MB.
-# Al convertirse a Base64 aumenta de tamaño,
-# por eso el cuerpo JSON puede acercarse a 4 MB.
+
+# El frontend admite imágenes originales
+# de máximo 3 MB.
+MAX_IMAGE_BYTES = 3 * 1024 * 1024
+
+# La imagen enviada como Base64 ocupa más
+# espacio que el archivo original.
 MAX_REQUEST_BYTES = 4_400_000
 
 
@@ -37,7 +47,10 @@ class ImageValidator:
     @staticmethod
     def validate_image_data(image_data):
 
-        # Comprobar que exista y sea texto
+        # ---------------------------------
+        # VALIDAR EXISTENCIA
+        # ---------------------------------
+
         if not isinstance(image_data, str):
 
             return (
@@ -54,10 +67,9 @@ class ImageValidator:
             )
 
 
-        # Validar formato Data URL:
-        # data:image/png;base64,...
-        # data:image/jpeg;base64,...
-        # data:image/webp;base64,...
+        # ---------------------------------
+        # VALIDAR DATA URL
+        # ---------------------------------
 
         pattern = (
             r"^data:"
@@ -82,7 +94,8 @@ class ImageValidator:
 
 
         mime_type = (
-            match.group(1)
+            match
+            .group(1)
             .lower()
         )
 
@@ -92,6 +105,64 @@ class ImageValidator:
             return (
                 False,
                 "El formato de imagen no está permitido."
+            )
+
+
+        # ---------------------------------
+        # EXTRAER BASE64
+        # ---------------------------------
+
+        try:
+
+            base64_content = (
+                image_data
+                .split(",", 1)[1]
+            )
+
+
+            decoded_image = (
+                base64.b64decode(
+                    base64_content,
+                    validate=True
+                )
+            )
+
+        except (
+            IndexError,
+            ValueError,
+            base64.binascii.Error
+        ):
+
+            return (
+                False,
+                "El contenido de la imagen no es válido."
+            )
+
+
+        # ---------------------------------
+        # VALIDAR ARCHIVO VACÍO
+        # ---------------------------------
+
+        if len(decoded_image) == 0:
+
+            return (
+                False,
+                "La imagen seleccionada está vacía."
+            )
+
+
+        # ---------------------------------
+        # VALIDAR TAMAÑO REAL
+        # ---------------------------------
+
+        if (
+            len(decoded_image) >
+            MAX_IMAGE_BYTES
+        ):
+
+            return (
+                False,
+                "La imagen supera el límite de 3 MB."
             )
 
 
@@ -126,59 +197,157 @@ class ImageTranslationService:
         )
 
 
+    # =====================================
+    # PROCESO PRINCIPAL
+    # =====================================
+
     def translate_image(
         self,
         image_data
     ):
 
+        # ---------------------------------
+        # PASO 1
+        # TRANSCRIBIR LA IMAGEN
+        # ---------------------------------
+
+        transcription = (
+            self._transcribe_image(
+                image_data
+            )
+        )
+
+
+        # Si la imagen no pudo leerse,
+        # se detiene el proceso.
+
+        if (
+            transcription["status"]
+            != "success"
+        ):
+
+            return transcription
+
+
+        detected_text = (
+            transcription[
+                "detected_text"
+            ]
+        )
+
+
+        source_language = (
+            transcription[
+                "source_language"
+            ]
+        )
+
+
+        # ---------------------------------
+        # PASO 2
+        # TRADUCIR EL TEXTO TRANSCRITO
+        # ---------------------------------
+
+        translation = (
+            self._translate_text(
+                detected_text,
+                source_language
+            )
+        )
+
+
+        target_language = (
+            "en"
+            if source_language == "es"
+            else "es"
+        )
+
+
+        return {
+
+            "status":
+                "success",
+
+            "source_language":
+                source_language,
+
+            "target_language":
+                target_language,
+
+            "detected_text":
+                detected_text,
+
+            "translation":
+                translation
+        }
+
+
+    # =====================================
+    # PASO 1
+    # TRANSCRIPCIÓN VISUAL
+    # =====================================
+
+    def _transcribe_image(
+        self,
+        image_data
+    ):
+
         instructions = """
-Eres un traductor profesional especializado
-exclusivamente en español e inglés.
+Eres un sistema especializado en lectura visual
+de texto contenido en imágenes.
 
-Debes analizar cuidadosamente la imagen proporcionada.
+En esta etapa NO debes traducir.
 
-Tu tarea es:
+Tu única tarea es TRANSCRIBIR con la mayor fidelidad
+posible el texto realmente visible en la imagen.
 
-1. Identificar únicamente el texto realmente visible
-   y legible en la imagen.
+REGLAS IMPORTANTES:
 
-2. Detectar si ese texto está principalmente en
-   español o en inglés.
+1. Lee cuidadosamente el texto carácter por carácter.
 
-3. Si el texto está en español, traducirlo al inglés.
+2. detected_text debe contener el texto tal como
+   aparece visualmente en la imagen.
 
-4. Si el texto está en inglés, traducirlo al español.
+3. Conserva:
+   - nombres
+   - apodos
+   - palabras informales
+   - mayúsculas y minúsculas
+   - números
+   - signos de puntuación
+   - repeticiones expresivas de letras
+   - posibles errores ortográficos del texto original
 
-5. Mantener correctamente nombres propios, cifras,
-   fechas, precios, unidades, siglas y términos
-   técnicos según el contexto.
+4. NO corrijas automáticamente las palabras.
 
-6. Producir una traducción natural y comprensible.
+5. NO reemplaces una palabra por otra solamente
+   porque parezca más lógica.
 
-7. No inventar palabras ni contenido que no esté
-   visible en la imagen.
+6. NO traduzcas el texto todavía.
 
-8. Si la imagen no contiene texto legible,
+7. Revisa nuevamente cada palabra antes de responder.
+
+8. Si una palabra importante no puede distinguirse
+   con suficiente confianza, NO la adivines.
+   Devuelve status "unreadable".
+
+9. Si la imagen no contiene texto legible,
    devuelve status "no_text".
 
-9. Si parece existir texto pero la calidad de la
-   imagen impide interpretarlo de forma confiable,
-   devuelve status "unreadable".
+10. Determina si el texto está principalmente
+    en español o en inglés.
 
-10. Si el texto visible no está principalmente en
-    español ni en inglés, devuelve status
-    "unsupported".
+11. Si no está principalmente en español ni inglés,
+    devuelve status "unsupported".
 
 Devuelve SOLAMENTE un objeto JSON válido.
 
-Cuando todo funcione correctamente:
+Si la lectura es correcta:
 
 {
     "status": "success",
     "source_language": "es",
-    "target_language": "en",
-    "detected_text": "texto encontrado",
-    "translation": "texto traducido",
+    "detected_text": "texto exactamente identificado",
     "message": ""
 }
 
@@ -195,28 +364,28 @@ source_language solamente puede ser:
 "en"
 ""
 
-target_language solamente puede ser:
-
-"es"
-"en"
-""
+Para no_text, unreadable o unsupported,
+detected_text puede ser una cadena vacía.
 
 No utilices Markdown.
 No utilices bloques de código.
-No escribas explicaciones fuera del objeto JSON.
+No escribas explicaciones fuera del JSON.
 """
 
 
         response = (
             self.client.responses.create(
 
-                model=MODEL,
+                model=
+                    VISION_MODEL,
 
-                instructions=instructions,
+                instructions=
+                    instructions,
 
                 input=[
                     {
-                        "role": "user",
+                        "role":
+                            "user",
 
                         "content": [
 
@@ -225,7 +394,12 @@ No escribas explicaciones fuera del objeto JSON.
                                     "input_text",
 
                                 "text":
-                                    "Analiza el texto visible de esta imagen y tradúcelo al idioma contrario."
+                                    (
+                                        "Transcribe exactamente todo "
+                                        "el texto visible de esta imagen. "
+                                        "No traduzcas, no corrijas y no "
+                                        "adivines palabras dudosas."
+                                    )
                             },
 
                             {
@@ -243,7 +417,13 @@ No escribas explicaciones fuera del objeto JSON.
                     }
                 ],
 
-                max_output_tokens=1800,
+                reasoning={
+                    "effort":
+                        "low"
+                },
+
+                max_output_tokens=
+                    1200,
 
                 store=False
             )
@@ -251,29 +431,30 @@ No escribas explicaciones fuera del objeto JSON.
 
 
         output = (
-            response.output_text
+            response
+            .output_text
             .strip()
         )
 
 
         return (
-            self._parse_response(
+            self._parse_transcription(
                 output
             )
         )
 
 
     # =====================================
-    # INTERPRETAR RESPUESTA DE OPENAI
+    # INTERPRETAR TRANSCRIPCIÓN
     # =====================================
 
-    def _parse_response(
+    def _parse_transcription(
         self,
         output
     ):
 
-        # Protección adicional por si el modelo
-        # llegara a devolver ```json ... ```
+        # Protección por si el modelo
+        # devuelve ```json ... ```
 
         if output.startswith("```"):
 
@@ -283,10 +464,12 @@ No escribas explicaciones fuera del objeto JSON.
                 1
             )
 
+
             output = output.replace(
                 "```",
                 ""
             )
+
 
             output = output.strip()
 
@@ -300,8 +483,8 @@ No escribas explicaciones fuera del objeto JSON.
         except json.JSONDecodeError:
 
             raise ValueError(
-                "La respuesta de la IA "
-                "no tiene el formato esperado."
+                "La respuesta visual no tiene "
+                "el formato esperado."
             )
 
 
@@ -321,88 +504,97 @@ No escribas explicaciones fuera del objeto JSON.
         if status not in allowed_status:
 
             raise ValueError(
-                "El estado recibido "
+                "El estado visual recibido "
                 "no es válido."
             )
 
 
-        # =================================
-        # CASOS SIN TRADUCCIÓN
-        # =================================
+        # ---------------------------------
+        # SIN TEXTO
+        # ---------------------------------
 
-        if status != "success":
+        if status == "no_text":
 
             return {
+
                 "status":
-                    status,
+                    "no_text",
 
                 "message":
                     data.get(
-                        "message",
-                        ""
+                        "message"
+                    )
+                    or
+                    "No se encontró texto legible en la imagen."
+            }
+
+
+        # ---------------------------------
+        # TEXTO POCO CONFIABLE
+        # ---------------------------------
+
+        if status == "unreadable":
+
+            return {
+
+                "status":
+                    "unreadable",
+
+                "message":
+                    data.get(
+                        "message"
+                    )
+                    or
+                    (
+                        "La calidad de la imagen no permite "
+                        "identificar el texto con suficiente "
+                        "confianza."
                     )
             }
 
 
-        # =================================
-        # CASO EXITOSO
-        # =================================
+        # ---------------------------------
+        # IDIOMA NO ADMITIDO
+        # ---------------------------------
 
-        source_language = data.get(
-            "source_language"
-        )
+        if status == "unsupported":
 
+            return {
 
-        target_language = data.get(
-            "target_language"
-        )
+                "status":
+                    "unsupported",
 
-
-        detected_text = data.get(
-            "detected_text",
-            ""
-        )
-
-
-        translation = data.get(
-            "translation",
-            ""
-        )
+                "message":
+                    data.get(
+                        "message"
+                    )
+                    or
+                    (
+                        "El texto visible debe estar "
+                        "principalmente en español o inglés."
+                    )
+            }
 
 
-        # Validar idioma de origen
+        # ---------------------------------
+        # TRANSCRIPCIÓN CORRECTA
+        # ---------------------------------
 
-        if source_language not in [
-            "es",
-            "en"
-        ]:
-
-            raise ValueError(
-                "Idioma de origen inválido."
+        detected_text = (
+            data.get(
+                "detected_text",
+                ""
             )
-
-
-        # Determinar cuál debería ser
-        # el idioma contrario
-
-        expected_target = (
-            "en"
-            if source_language == "es"
-            else "es"
         )
 
 
-        if (
-            target_language !=
-            expected_target
-        ):
-
-            raise ValueError(
-                "Idioma de destino inválido."
+        source_language = (
+            data.get(
+                "source_language",
+                ""
             )
+        )
 
-
-        # Validar texto detectado
 
         if (
             not isinstance(
@@ -414,23 +606,17 @@ No escribas explicaciones fuera del objeto JSON.
         ):
 
             raise ValueError(
-                "No se recibió texto detectado."
+                "La transcripción recibida está vacía."
             )
 
 
-        # Validar traducción
-
-        if (
-            not isinstance(
-                translation,
-                str
-            )
-            or
-            not translation.strip()
-        ):
+        if source_language not in [
+            "es",
+            "en"
+        ]:
 
             raise ValueError(
-                "No se recibió traducción."
+                "El idioma detectado no es válido."
             )
 
 
@@ -442,15 +628,111 @@ No escribas explicaciones fuera del objeto JSON.
             "source_language":
                 source_language,
 
-            "target_language":
-                target_language,
-
             "detected_text":
-                detected_text.strip(),
-
-            "translation":
-                translation.strip()
+                detected_text.strip()
         }
+
+
+    # =====================================
+    # PASO 2
+    # TRADUCCIÓN DEL TEXTO
+    # =====================================
+
+    def _translate_text(
+        self,
+        text,
+        source_language
+    ):
+
+        if source_language == "es":
+
+            target_language_name = (
+                "inglés"
+            )
+
+        else:
+
+            target_language_name = (
+                "español"
+            )
+
+
+        instructions = f"""
+Eres un traductor profesional bilingüe
+especializado en español e inglés.
+
+El texto recibido ya fue transcrito desde una imagen.
+
+Debes traducirlo al {target_language_name}.
+
+REGLAS:
+
+1. Traduce únicamente el texto recibido.
+
+2. Mantén el significado original.
+
+3. Produce una traducción natural y comprensible.
+
+4. Conserva nombres propios, apodos, cifras,
+   fechas, precios, unidades, siglas y términos
+   técnicos cuando corresponda.
+
+5. NO modifiques ni corrijas primero el texto
+   de origen.
+
+6. Si existen repeticiones expresivas de letras,
+   intenta mantener razonablemente esa intención
+   en la traducción.
+
+7. No inventes información.
+
+Devuelve SOLAMENTE la traducción.
+
+No utilices Markdown.
+No agregues explicaciones.
+"""
+
+
+        response = (
+            self.client.responses.create(
+
+                model=
+                    TRANSLATION_MODEL,
+
+                instructions=
+                    instructions,
+
+                input=
+                    text,
+
+                reasoning={
+                    "effort":
+                        "none"
+                },
+
+                max_output_tokens=
+                    1200,
+
+                store=False
+            )
+        )
+
+
+        translation = (
+            response
+            .output_text
+            .strip()
+        )
+
+
+        if not translation:
+
+            raise ValueError(
+                "La traducción recibida está vacía."
+            )
+
+
+        return translation
 
 
 # =========================================
@@ -495,7 +777,7 @@ class handler(
 
 
     # =====================================
-    # HEADERS CORS
+    # AGREGAR HEADERS CORS
     # =====================================
 
     def _add_cors_headers(self):
@@ -521,7 +803,7 @@ class handler(
 
 
     # =====================================
-    # ENVIAR RESPUESTA JSON
+    # RESPUESTA JSON
     # =====================================
 
     def _send_json(
@@ -664,7 +946,10 @@ class handler(
                 415,
                 {
                     "error":
-                        "El contenido debe enviarse como application/json."
+                        (
+                            "El contenido debe enviarse "
+                            "como application/json."
+                        )
                 }
             )
 
@@ -672,7 +957,7 @@ class handler(
 
 
         # ---------------------------------
-        # VALIDAR TAMAÑO DE PETICIÓN
+        # OBTENER TAMAÑO DE PETICIÓN
         # ---------------------------------
 
         try:
@@ -719,7 +1004,10 @@ class handler(
                 413,
                 {
                     "error":
-                        "La imagen supera el tamaño permitido."
+                        (
+                            "La imagen supera "
+                            "el tamaño permitido."
+                        )
                 }
             )
 
@@ -754,7 +1042,10 @@ class handler(
                 400,
                 {
                     "error":
-                        "El contenido JSON no es válido."
+                        (
+                            "El contenido JSON "
+                            "no es válido."
+                        )
                 }
             )
 
@@ -792,7 +1083,7 @@ class handler(
 
 
         # ---------------------------------
-        # ENVIAR A OPENAI
+        # PROCESAR CON OPENAI
         # ---------------------------------
 
         try:
@@ -811,7 +1102,7 @@ class handler(
 
 
             # -----------------------------
-            # SIN TEXTO
+            # NO HAY TEXTO
             # -----------------------------
 
             if (
@@ -827,7 +1118,10 @@ class handler(
                                 "message"
                             )
                             or
-                            "No se encontró texto legible en la imagen."
+                            (
+                                "No se encontró texto "
+                                "legible en la imagen."
+                            )
                     }
                 )
 
@@ -835,7 +1129,7 @@ class handler(
 
 
             # -----------------------------
-            # IMAGEN ILEGIBLE
+            # TEXTO ILEGIBLE
             # -----------------------------
 
             if (
@@ -851,7 +1145,11 @@ class handler(
                                 "message"
                             )
                             or
-                            "La calidad de la imagen no permite obtener un resultado confiable."
+                            (
+                                "La calidad de la imagen "
+                                "no permite obtener un "
+                                "resultado confiable."
+                            )
                     }
                 )
 
@@ -859,7 +1157,7 @@ class handler(
 
 
             # -----------------------------
-            # OTRO IDIOMA
+            # IDIOMA NO ADMITIDO
             # -----------------------------
 
             if (
@@ -875,7 +1173,11 @@ class handler(
                                 "message"
                             )
                             or
-                            "El texto visible debe estar principalmente en español o inglés."
+                            (
+                                "El texto visible debe "
+                                "estar principalmente en "
+                                "español o inglés."
+                            )
                     }
                 )
 
@@ -883,7 +1185,7 @@ class handler(
 
 
             # -----------------------------
-            # ÉXITO
+            # RESPUESTA CORRECTA
             # -----------------------------
 
             self._send_json(
@@ -916,13 +1218,23 @@ class handler(
         # RESPUESTA IA INESPERADA
         # ---------------------------------
 
-        except ValueError:
+        except ValueError as error:
+
+            print(
+                "Error de respuesta IA:",
+                type(error).__name__
+            )
+
 
             self._send_json(
                 502,
                 {
                     "error":
-                        "La respuesta del servicio de Inteligencia Artificial no pudo procesarse."
+                        (
+                            "La respuesta del servicio "
+                            "de Inteligencia Artificial "
+                            "no pudo procesarse."
+                        )
                 }
             )
 
@@ -933,10 +1245,8 @@ class handler(
 
         except Exception as error:
 
-            # Solo mostramos el tipo
-            # de error en logs.
-            # No enviamos detalles sensibles
-            # al navegador.
+            # No enviamos trazas ni
+            # información sensible al navegador.
 
             print(
                 "Error interno en imágenes:",
@@ -948,7 +1258,10 @@ class handler(
                 500,
                 {
                     "error":
-                        "No fue posible analizar la imagen en este momento."
+                        (
+                            "No fue posible analizar "
+                            "la imagen en este momento."
+                        )
                 }
             )
 
