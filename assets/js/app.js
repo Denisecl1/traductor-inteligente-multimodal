@@ -1,8 +1,15 @@
 "use strict";
 
 
-const API_URL =
+/* =========================================
+   ENDPOINTS DEL BACKEND
+========================================= */
+
+const CHAT_API_URL =
     "https://traductor-inteligente-multimodal.vercel.app/api/chat";
+
+const IMAGE_API_URL =
+    "https://traductor-inteligente-multimodal.vercel.app/api/images";
 
 
 /* =========================================
@@ -20,7 +27,6 @@ class StatusManager {
             return;
         }
 
-
         const icons = {
             success: "✓",
             warning: "⚠",
@@ -28,26 +34,20 @@ class StatusManager {
             loading: "⏳"
         };
 
-
         container.innerHTML = "";
-
 
         const messageElement =
             document.createElement("div");
 
-
         messageElement.className =
             `status-message status-${type}`;
-
 
         messageElement.textContent =
             `${icons[type] || ""} ${message}`;
 
-
         container.appendChild(
             messageElement
         );
-
     }
 
 
@@ -56,13 +56,9 @@ class StatusManager {
         const container =
             document.getElementById(containerId);
 
-
         if (container) {
-
             container.innerHTML = "";
-
         }
-
     }
 
 }
@@ -81,65 +77,44 @@ class ChatModule {
                 "chatForm"
             );
 
-
         this.messageInput =
             document.getElementById(
                 "messageInput"
             );
-
 
         this.characterCounter =
             document.getElementById(
                 "characterCounter"
             );
 
-
         this.participantSelect =
             document.getElementById(
                 "participantSelect"
             );
-
 
         this.messages =
             document.getElementById(
                 "chatMessages"
             );
 
-
         this.sendButton =
             document.getElementById(
                 "sendMessageButton"
             );
-
 
         this.clearChatButton =
             document.getElementById(
                 "clearChatButton"
             );
 
-
         this.maxCharacters = 1000;
-
-
-        /*
-         * Clave utilizada para guardar
-         * la conversación en sessionStorage.
-         */
 
         this.storageKey =
             "translatorChatHistory";
 
-
-        /*
-         * Historial de mensajes de
-         * la sesión actual.
-         */
-
         this.history = [];
 
-
         this.init();
-
     }
 
 
@@ -150,15 +125,9 @@ class ChatModule {
             !this.messageInput ||
             !this.messages
         ) {
-
             return;
-
         }
 
-
-        /*
-         * Contador de caracteres
-         */
 
         this.messageInput.addEventListener(
             "input",
@@ -167,10 +136,6 @@ class ChatModule {
         );
 
 
-        /*
-         * Envío del formulario
-         */
-
         this.form.addEventListener(
             "submit",
             (event) =>
@@ -178,27 +143,17 @@ class ChatModule {
         );
 
 
-        /*
-         * Limpiar conversación
-         */
-
         if (this.clearChatButton) {
 
             this.clearChatButton.addEventListener(
                 "click",
-                () => this.clearChat()
+                () =>
+                    this.clearChat()
             );
-
         }
 
 
-        /*
-         * Recuperar conversación guardada
-         * durante la sesión.
-         */
-
         this.loadHistory();
-
     }
 
 
@@ -211,10 +166,8 @@ class ChatModule {
         const currentLength =
             this.messageInput.value.length;
 
-
         this.characterCounter.textContent =
             currentLength;
-
     }
 
 
@@ -226,14 +179,9 @@ class ChatModule {
 
         event.preventDefault();
 
-
         const message =
             this.messageInput.value.trim();
 
-
-        /*
-         * Validar mensaje vacío
-         */
 
         if (!message) {
 
@@ -243,18 +191,11 @@ class ChatModule {
                 "Escribe un mensaje antes de enviarlo."
             );
 
-
             this.messageInput.focus();
 
-
             return;
-
         }
 
-
-        /*
-         * Validar longitud
-         */
 
         if (
             message.length >
@@ -267,9 +208,7 @@ class ChatModule {
                 `El mensaje no puede superar ${this.maxCharacters} caracteres.`
             );
 
-
             return;
-
         }
 
 
@@ -278,10 +217,6 @@ class ChatModule {
 
 
         try {
-
-            /*
-             * Estado de carga
-             */
 
             this.setLoading(true);
 
@@ -293,13 +228,9 @@ class ChatModule {
             );
 
 
-            /*
-             * Solicitud al backend de Vercel
-             */
-
             const response =
                 await fetch(
-                    API_URL,
+                    CHAT_API_URL,
                     {
                         method: "POST",
 
@@ -318,10 +249,6 @@ class ChatModule {
             let data = {};
 
 
-            /*
-             * Convertir respuesta a JSON
-             */
-
             try {
 
                 data =
@@ -332,13 +259,8 @@ class ChatModule {
                 throw new Error(
                     "El servidor devolvió una respuesta no válida."
                 );
-
             }
 
-
-            /*
-             * Verificar respuesta HTTP
-             */
 
             if (!response.ok) {
 
@@ -346,13 +268,8 @@ class ChatModule {
                     data.error ||
                     "No fue posible realizar la traducción."
                 );
-
             }
 
-
-            /*
-             * Mostrar mensaje en pantalla
-             */
 
             this.addMessage(
                 participant,
@@ -363,11 +280,8 @@ class ChatModule {
             );
 
 
-            /*
-             * Guardar mensaje en historial
-             */
-
             this.saveMessage({
+
                 participant:
                     participant,
 
@@ -382,22 +296,15 @@ class ChatModule {
 
                 targetLanguage:
                     data.target_language
+
             });
 
-
-            /*
-             * Limpiar textarea
-             */
 
             this.messageInput.value = "";
 
 
             this.updateCharacterCounter();
 
-
-            /*
-             * Mostrar éxito
-             */
 
             StatusManager.show(
                 "chatStatus",
@@ -426,14 +333,12 @@ class ChatModule {
         } finally {
 
             this.setLoading(false);
-
         }
-
     }
 
 
     /* =====================================
-       MOSTRAR MENSAJE EN EL CHAT
+       MOSTRAR MENSAJE
     ===================================== */
 
     addMessage(
@@ -444,10 +349,6 @@ class ChatModule {
         targetLanguage
     ) {
 
-        /*
-         * Eliminar mensaje inicial
-         */
-
         const placeholder =
             this.messages.querySelector(
                 ".text-center.text-secondary"
@@ -455,15 +356,9 @@ class ChatModule {
 
 
         if (placeholder) {
-
             placeholder.remove();
-
         }
 
-
-        /*
-         * Contenedor principal
-         */
 
         const messageContainer =
             document.createElement("div");
@@ -473,10 +368,6 @@ class ChatModule {
             "chat-message"
         );
 
-
-        /*
-         * Aplicar estilo según participante
-         */
 
         if (
             participant ===
@@ -492,13 +383,10 @@ class ChatModule {
             messageContainer.classList.add(
                 "participant-2"
             );
-
         }
 
 
-        /*
-         * Nombre del participante
-         */
+        /* PARTICIPANTE */
 
         const participantElement =
             document.createElement("div");
@@ -516,9 +404,7 @@ class ChatModule {
                 : "Participante 2";
 
 
-        /*
-         * Texto original
-         */
+        /* ORIGINAL */
 
         const originalElement =
             document.createElement("div");
@@ -554,9 +440,7 @@ class ChatModule {
         );
 
 
-        /*
-         * Traducción
-         */
+        /* TRADUCCIÓN */
 
         const translationElement =
             document.createElement("div");
@@ -592,9 +476,7 @@ class ChatModule {
         );
 
 
-        /*
-         * Botón para copiar traducción
-         */
+        /* BOTÓN COPIAR */
 
         const copyButton =
             document.createElement("button");
@@ -623,51 +505,37 @@ class ChatModule {
         );
 
 
-        /*
-         * Construir mensaje
-         */
+        /* CONSTRUIR MENSAJE */
 
         messageContainer.appendChild(
             participantElement
         );
 
-
         messageContainer.appendChild(
             originalElement
         );
 
-
         messageContainer.appendChild(
             translationElement
         );
-
 
         messageContainer.appendChild(
             copyButton
         );
 
 
-        /*
-         * Agregar mensaje al chat
-         */
-
         this.messages.appendChild(
             messageContainer
         );
 
 
-        /*
-         * Llevar scroll al último mensaje
-         */
-
         this.messages.scrollTop =
             this.messages.scrollHeight;
-
     }
 
 
     /* =====================================
-       NOMBRE DEL IDIOMA
+       NOMBRE DE IDIOMA
     ===================================== */
 
     getLanguageName(language) {
@@ -682,20 +550,17 @@ class ChatModule {
             languages[language] ||
             language
         );
-
     }
 
 
     /* =====================================
-       ESTADO DEL BOTÓN
+       BOTÓN CARGANDO
     ===================================== */
 
     setLoading(isLoading) {
 
         if (!this.sendButton) {
-
             return;
-
         }
 
 
@@ -707,12 +572,11 @@ class ChatModule {
             isLoading
                 ? "Traduciendo..."
                 : "Traducir y enviar";
-
     }
 
 
     /* =====================================
-       GUARDAR MENSAJE EN SESSION STORAGE
+       GUARDAR HISTORIAL
     ===================================== */
 
     saveMessage(message) {
@@ -737,9 +601,7 @@ class ChatModule {
                 "No fue posible guardar el historial:",
                 error
             );
-
         }
-
     }
 
 
@@ -756,9 +618,7 @@ class ChatModule {
 
 
         if (!savedHistory) {
-
             return;
-
         }
 
 
@@ -770,11 +630,6 @@ class ChatModule {
                 );
 
 
-            /*
-             * Verificar que realmente
-             * sea un arreglo.
-             */
-
             if (
                 !Array.isArray(
                     parsedHistory
@@ -783,24 +638,19 @@ class ChatModule {
 
                 this.history = [];
 
+
                 sessionStorage.removeItem(
                     this.storageKey
                 );
 
 
                 return;
-
             }
 
 
             this.history =
                 parsedHistory;
 
-
-            /*
-             * Reconstruir los mensajes
-             * guardados en pantalla.
-             */
 
             this.history.forEach(
                 (message) => {
@@ -812,7 +662,6 @@ class ChatModule {
                         message.sourceLanguage,
                         message.targetLanguage
                     );
-
                 }
             );
 
@@ -830,9 +679,7 @@ class ChatModule {
             sessionStorage.removeItem(
                 this.storageKey
             );
-
         }
-
     }
 
 
@@ -841,10 +688,6 @@ class ChatModule {
     ===================================== */
 
     clearChat() {
-
-        /*
-         * Si no hay mensajes
-         */
 
         if (
             this.history.length === 0
@@ -856,15 +699,9 @@ class ChatModule {
                 "La conversación ya está vacía."
             );
 
-
             return;
-
         }
 
-
-        /*
-         * Confirmar antes de eliminar
-         */
 
         const confirmClear =
             window.confirm(
@@ -873,15 +710,9 @@ class ChatModule {
 
 
         if (!confirmClear) {
-
             return;
-
         }
 
-
-        /*
-         * Vaciar historial
-         */
 
         this.history = [];
 
@@ -891,20 +722,12 @@ class ChatModule {
         );
 
 
-        /*
-         * Restaurar contenedor
-         */
-
         this.messages.innerHTML = `
             <div class="text-center text-secondary py-4">
                 La conversación aparecerá aquí.
             </div>
         `;
 
-
-        /*
-         * Limpiar estado anterior
-         */
 
         StatusManager.show(
             "chatStatus",
@@ -914,7 +737,6 @@ class ChatModule {
 
 
         this.messageInput.focus();
-
     }
 
 
@@ -929,10 +751,6 @@ class ChatModule {
 
         try {
 
-            /*
-             * Copiar al portapapeles
-             */
-
             await navigator.clipboard.writeText(
                 translation
             );
@@ -942,10 +760,6 @@ class ChatModule {
                 button.textContent;
 
 
-            /*
-             * Mostrar confirmación
-             */
-
             button.textContent =
                 "✓ Copiado";
 
@@ -954,11 +768,6 @@ class ChatModule {
                 "copied"
             );
 
-
-            /*
-             * Restaurar botón después
-             * de 1.5 segundos.
-             */
 
             setTimeout(
                 () => {
@@ -988,16 +797,14 @@ class ChatModule {
                 "error",
                 "No fue posible copiar la traducción."
             );
-
         }
-
     }
 
 }
 
 
 /* =========================================
-   CLASE PARA MANEJO DE ARCHIVOS
+   CLASE BASE PARA MANEJO DE ARCHIVOS
 ========================================= */
 
 class FileModule {
@@ -1009,30 +816,24 @@ class FileModule {
                 config.formId
             );
 
-
         this.input =
             document.getElementById(
                 config.inputId
             );
-
 
         this.fileName =
             document.getElementById(
                 config.fileNameId
             );
 
-
         this.statusId =
             config.statusId;
-
 
         this.allowedExtensions =
             config.allowedExtensions;
 
-
         this.maxSizeMB =
             config.maxSizeMB;
-
 
         this.previewContainer =
             config.previewContainerId
@@ -1041,7 +842,6 @@ class FileModule {
                 )
                 : null;
 
-
         this.preview =
             config.previewId
                 ? document.getElementById(
@@ -1049,12 +849,11 @@ class FileModule {
                 )
                 : null;
 
-
-        this.previewUrl = null;
+        this.previewUrl =
+            null;
 
 
         this.init();
-
     }
 
 
@@ -1064,9 +863,7 @@ class FileModule {
             !this.input ||
             !this.form
         ) {
-
             return;
-
         }
 
 
@@ -1082,7 +879,6 @@ class FileModule {
             (event) =>
                 this.handleSubmit(event)
         );
-
     }
 
 
@@ -1103,7 +899,6 @@ class FileModule {
                 ? parts.pop()
                 : ""
         );
-
     }
 
 
@@ -1113,10 +908,6 @@ class FileModule {
 
     validateFile(file) {
 
-        /*
-         * Archivo no seleccionado
-         */
-
         if (!file) {
 
             return {
@@ -1125,23 +916,14 @@ class FileModule {
                 message:
                     "Selecciona un archivo."
             };
-
         }
 
-
-        /*
-         * Obtener extensión
-         */
 
         const extension =
             this.getExtension(
                 file.name
             );
 
-
-        /*
-         * Validar formato
-         */
 
         if (
             !this.allowedExtensions.includes(
@@ -1155,13 +937,8 @@ class FileModule {
                 message:
                     "El formato del archivo no está permitido."
             };
-
         }
 
-
-        /*
-         * Validar tamaño
-         */
 
         const maxBytes =
             this.maxSizeMB *
@@ -1180,13 +957,8 @@ class FileModule {
                 message:
                     `El archivo supera el límite de ${this.maxSizeMB} MB.`
             };
-
         }
 
-
-        /*
-         * Archivo vacío
-         */
 
         if (
             file.size === 0
@@ -1198,7 +970,6 @@ class FileModule {
                 message:
                     "El archivo seleccionado está vacío."
             };
-
         }
 
 
@@ -1208,7 +979,6 @@ class FileModule {
             message:
                 "Archivo válido."
         };
-
     }
 
 
@@ -1227,10 +997,6 @@ class FileModule {
             this.input.files[0];
 
 
-        /*
-         * Si se cancela la selección
-         */
-
         if (!file) {
 
             this.resetFileName();
@@ -1238,13 +1004,8 @@ class FileModule {
             this.hidePreview();
 
             return;
-
         }
 
-
-        /*
-         * Validar archivo
-         */
 
         const validation =
             this.validateFile(
@@ -1252,9 +1013,7 @@ class FileModule {
             );
 
 
-        if (
-            !validation.valid
-        ) {
+        if (!validation.valid) {
 
             StatusManager.show(
                 this.statusId,
@@ -1263,7 +1022,8 @@ class FileModule {
             );
 
 
-            this.input.value = "";
+            this.input.value =
+                "";
 
 
             this.resetFileName();
@@ -1273,25 +1033,15 @@ class FileModule {
 
 
             return;
-
         }
 
-
-        /*
-         * Mostrar nombre
-         */
 
         if (this.fileName) {
 
             this.fileName.textContent =
                 file.name;
-
         }
 
-
-        /*
-         * Mostrar estado
-         */
 
         StatusManager.show(
             this.statusId,
@@ -1300,24 +1050,17 @@ class FileModule {
         );
 
 
-        /*
-         * Mostrar vista previa
-         * si se trata de imagen.
-         */
-
         if (this.preview) {
 
             this.showImagePreview(
                 file
             );
-
         }
-
     }
 
 
     /* =====================================
-       FORMULARIO DEL ARCHIVO
+       ENVÍO GENÉRICO
     ===================================== */
 
     handleSubmit(event) {
@@ -1329,10 +1072,6 @@ class FileModule {
             this.input.files[0];
 
 
-        /*
-         * Sin archivo
-         */
-
         if (!file) {
 
             StatusManager.show(
@@ -1341,15 +1080,9 @@ class FileModule {
                 "Selecciona un archivo antes de continuar."
             );
 
-
             return;
-
         }
 
-
-        /*
-         * Validar nuevamente
-         */
 
         const validation =
             this.validateFile(
@@ -1357,9 +1090,7 @@ class FileModule {
             );
 
 
-        if (
-            !validation.valid
-        ) {
+        if (!validation.valid) {
 
             StatusManager.show(
                 this.statusId,
@@ -1367,29 +1098,20 @@ class FileModule {
                 validation.message
             );
 
-
             return;
-
         }
 
-
-        /*
-         * Todavía no se envía el archivo.
-         * Esto se conectará posteriormente
-         * con cada endpoint de Vercel.
-         */
 
         StatusManager.show(
             this.statusId,
             "success",
             "Archivo válido y listo para procesarse."
         );
-
     }
 
 
     /* =====================================
-       VISTA PREVIA DE IMAGEN
+       VISTA PREVIA
     ===================================== */
 
     showImagePreview(file) {
@@ -1398,28 +1120,17 @@ class FileModule {
             !this.preview ||
             !this.previewContainer
         ) {
-
             return;
-
         }
 
-
-        /*
-         * Liberar URL anterior
-         */
 
         if (this.previewUrl) {
 
             URL.revokeObjectURL(
                 this.previewUrl
             );
-
         }
 
-
-        /*
-         * Crear nueva URL temporal
-         */
 
         this.previewUrl =
             URL.createObjectURL(
@@ -1436,7 +1147,6 @@ class FileModule {
             .remove(
                 "d-none"
             );
-
     }
 
 
@@ -1450,9 +1160,7 @@ class FileModule {
             !this.preview ||
             !this.previewContainer
         ) {
-
             return;
-
         }
 
 
@@ -1465,7 +1173,6 @@ class FileModule {
 
             this.previewUrl =
                 null;
-
         }
 
 
@@ -1479,12 +1186,11 @@ class FileModule {
             .add(
                 "d-none"
             );
-
     }
 
 
     /* =====================================
-       RESTAURAR NOMBRE DEL ARCHIVO
+       RESTAURAR NOMBRE
     ===================================== */
 
     resetFileName() {
@@ -1493,9 +1199,371 @@ class FileModule {
 
             this.fileName.textContent =
                 "Ningún archivo seleccionado";
+        }
+    }
 
+}
+
+
+/* =========================================
+   MÓDULO ESPECÍFICO DE IMÁGENES
+========================================= */
+
+class ImageModule extends FileModule {
+
+    constructor(config) {
+
+        super(config);
+
+
+        this.apiUrl =
+            config.apiUrl;
+
+
+        this.submitButton =
+            document.getElementById(
+                config.submitButtonId
+            );
+
+
+        this.resultContainer =
+            document.getElementById(
+                config.resultContainerId
+            );
+
+
+        this.originalText =
+            document.getElementById(
+                config.originalTextId
+            );
+
+
+        this.translatedText =
+            document.getElementById(
+                config.translatedTextId
+            );
+    }
+
+
+    /* =====================================
+       SELECCIONAR NUEVA IMAGEN
+    ===================================== */
+
+    handleFileSelection() {
+
+        /*
+         * Ocultar resultado anterior
+         * cuando el usuario cambia de imagen.
+         */
+
+        this.hideResult();
+
+
+        /*
+         * Utilizar validaciones y preview
+         * de la clase FileModule.
+         */
+
+        super.handleFileSelection();
+    }
+
+
+    /* =====================================
+       TRADUCIR IMAGEN
+    ===================================== */
+
+    async handleSubmit(event) {
+
+        event.preventDefault();
+
+
+        const file =
+            this.input.files[0];
+
+
+        if (!file) {
+
+            StatusManager.show(
+                this.statusId,
+                "warning",
+                "Selecciona una imagen antes de continuar."
+            );
+
+            return;
         }
 
+
+        const validation =
+            this.validateFile(
+                file
+            );
+
+
+        if (!validation.valid) {
+
+            StatusManager.show(
+                this.statusId,
+                "error",
+                validation.message
+            );
+
+            return;
+        }
+
+
+        try {
+
+            /*
+             * Ocultar resultados anteriores
+             */
+
+            this.hideResult();
+
+
+            /*
+             * Bloquear botón
+             */
+
+            this.setLoading(true);
+
+
+            StatusManager.show(
+                this.statusId,
+                "loading",
+                "Analizando y traduciendo la imagen..."
+            );
+
+
+            /*
+             * Convertir imagen a Data URL
+             */
+
+            const imageData =
+                await this.fileToDataURL(
+                    file
+                );
+
+
+            /*
+             * Enviar imagen al backend
+             */
+
+            const response =
+                await fetch(
+                    this.apiUrl,
+                    {
+                        method: "POST",
+
+                        headers: {
+                            "Content-Type":
+                                "application/json"
+                        },
+
+                        body: JSON.stringify({
+                            image_data:
+                                imageData
+                        })
+                    }
+                );
+
+
+            let data = {};
+
+
+            try {
+
+                data =
+                    await response.json();
+
+            } catch {
+
+                throw new Error(
+                    "El servidor devolvió una respuesta no válida."
+                );
+            }
+
+
+            /*
+             * Error controlado por backend
+             */
+
+            if (!response.ok) {
+
+                throw new Error(
+                    data.error ||
+                    "No fue posible analizar la imagen."
+                );
+            }
+
+
+            /*
+             * Mostrar texto detectado
+             */
+
+            this.originalText.textContent =
+                data.detected_text;
+
+
+            /*
+             * Mostrar traducción
+             */
+
+            this.translatedText.textContent =
+                data.translation;
+
+
+            /*
+             * Mostrar contenedor resultado
+             */
+
+            this.resultContainer
+                .classList
+                .remove(
+                    "d-none"
+                );
+
+
+            StatusManager.show(
+                this.statusId,
+                "success",
+                `Imagen traducida correctamente: ${this.getLanguageName(data.source_language)} → ${this.getLanguageName(data.target_language)}.`
+            );
+
+        } catch (error) {
+
+            console.error(
+                "Error al traducir imagen:",
+                error
+            );
+
+
+            this.hideResult();
+
+
+            StatusManager.show(
+                this.statusId,
+                "error",
+                error.message ||
+                "No fue posible conectar con el servicio de traducción de imágenes."
+            );
+
+        } finally {
+
+            this.setLoading(false);
+        }
+    }
+
+
+    /* =====================================
+       CONVERTIR ARCHIVO A DATA URL
+    ===================================== */
+
+    fileToDataURL(file) {
+
+        return new Promise(
+            (resolve, reject) => {
+
+                const reader =
+                    new FileReader();
+
+
+                reader.onload =
+                    () => {
+
+                        resolve(
+                            reader.result
+                        );
+                    };
+
+
+                reader.onerror =
+                    () => {
+
+                        reject(
+                            new Error(
+                                "No fue posible leer la imagen seleccionada."
+                            )
+                        );
+                    };
+
+
+                reader.readAsDataURL(
+                    file
+                );
+            }
+        );
+    }
+
+
+    /* =====================================
+       OCULTAR RESULTADO
+    ===================================== */
+
+    hideResult() {
+
+        if (this.resultContainer) {
+
+            this.resultContainer
+                .classList
+                .add(
+                    "d-none"
+                );
+        }
+
+
+        if (this.originalText) {
+
+            this.originalText.textContent =
+                "";
+        }
+
+
+        if (this.translatedText) {
+
+            this.translatedText.textContent =
+                "";
+        }
+    }
+
+
+    /* =====================================
+       CARGANDO
+    ===================================== */
+
+    setLoading(isLoading) {
+
+        if (!this.submitButton) {
+            return;
+        }
+
+
+        this.submitButton.disabled =
+            isLoading;
+
+
+        this.submitButton.textContent =
+            isLoading
+                ? "Traduciendo..."
+                : "Traducir imagen";
+    }
+
+
+    /* =====================================
+       NOMBRE DEL IDIOMA
+    ===================================== */
+
+    getLanguageName(language) {
+
+        const languages = {
+            es: "Español",
+            en: "Inglés"
+        };
+
+
+        return (
+            languages[language] ||
+            language
+        );
     }
 
 }
@@ -1509,14 +1577,17 @@ class TranslatorApp {
 
     constructor() {
 
-        this.chat = null;
+        this.chat =
+            null;
 
-        this.audio = null;
+        this.audio =
+            null;
 
-        this.documents = null;
+        this.documents =
+            null;
 
-        this.images = null;
-
+        this.images =
+            null;
     }
 
 
@@ -1556,8 +1627,8 @@ class TranslatorApp {
                     "webm"
                 ],
 
-                maxSizeMB: 4
-
+                maxSizeMB:
+                    4
             });
 
 
@@ -1586,8 +1657,8 @@ class TranslatorApp {
                     "txt"
                 ],
 
-                maxSizeMB: 4
-
+                maxSizeMB:
+                    4
             });
 
 
@@ -1596,7 +1667,7 @@ class TranslatorApp {
         ================================= */
 
         this.images =
-            new FileModule({
+            new ImageModule({
 
                 formId:
                     "imageForm",
@@ -1617,16 +1688,34 @@ class TranslatorApp {
                     "webp"
                 ],
 
-                maxSizeMB: 4,
+                /*
+                 * Imágenes: máximo 3 MB.
+                 */
+
+                maxSizeMB:
+                    3,
 
                 previewContainerId:
                     "imagePreviewContainer",
 
                 previewId:
-                    "imagePreview"
+                    "imagePreview",
 
+                submitButtonId:
+                    "translateImageButton",
+
+                resultContainerId:
+                    "imageResult",
+
+                originalTextId:
+                    "imageOriginalText",
+
+                translatedTextId:
+                    "imageTranslatedText",
+
+                apiUrl:
+                    IMAGE_API_URL
             });
-
     }
 
 }
@@ -1645,6 +1734,5 @@ document.addEventListener(
 
 
         app.init();
-
     }
 );
